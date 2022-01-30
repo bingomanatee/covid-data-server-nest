@@ -24,6 +24,7 @@ export class GithubCsvService {
     this.gh = new GitHub(cred);
     this.repo = this.gh.getRepo('Lucas-Czarnecki', 'COVID-19-CLEANED-JHUCSSE');
     this.files = [];
+    this.s3Service = s3Service;
   }
 
   public async climbTree(
