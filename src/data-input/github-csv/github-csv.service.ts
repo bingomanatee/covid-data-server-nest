@@ -2,7 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 const GitHub = require('github-api');
 const dayjs = require('dayjs');
 import { Tree } from './interfaces/tree.interface';
-import {CsvS3Service} from '../csv-s3/csv-s3.service';
+import { CsvS3Service } from '../csv-s3/csv-s3.service';
 
 const files = [];
 const lastLoadTime = null;
@@ -67,6 +67,12 @@ export class GithubCsvService {
     if (!this.useCache()) await this.loadFiles();
     const keys = await this.s3Service.getBucketKeys();
     console.log('--- bucket keys', keys);
+    this.files = this.files.map((file) => {
+      return {
+        ...file,
+        isStored: !!keys.find((object) => object.Key === file.path),
+      }
+    });
     return this.files;
   }
 
