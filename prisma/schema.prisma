@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model covid_cases {
+  label     String
+  createdAt DateTime @default(now())
+  day       DateTime @db.Date
+  count     Int
+
+  @@unique([label, day])
+}
+
+model covid_daily_cases {
+  id             Int       @id
+  date_published DateTime
+  uid            Int
+  iso2           String
+  iso3           String
+  code3          String
+  fips           String
+  admin2         String
+  province_state String
+  country_region String
+  last_update    DateTime?
+  latitude       Float?
+  longitude      Float?
+  confirmed      Int?
+  deaths         Int?
+  recovered      Int?
+  active         Int?
+  population     Int?
+}
+
+model covid_data {
+  date_published       DateTime
+  uid                  Int
+  iso2                 String
+  iso3                 String
+  code3                String
+  fips                 String
+  province_state       String
+  country_region       String
+  last_update          DateTime?
+  latitude             Float?    @default(0)
+  longitude            Float?    @default(0)
+  confirmed            Int
+  deaths               Int
+  recovered            Int
+  active               Int
+  incident_rate        Float?
+  people_tested        Int
+  people_hospitalized  Int
+  mortality_rate       Int
+  testing_rate         Float?
+  hospitalization_rate Float?
+  population           Int
+
+  @@unique([uid, date_published])
+  @@index([date_published])
+}
+
+model locations {
+  uid            Int    @id @unique
+  iso2           String
+  iso3           String
+  code3          String
+  province_state String
+  country_region String
+  latitude       Float  @default(0)
+  longitude      Float  @default(0)
+  combined_key   String
+  population     Int
+  admin2         String
+  fips           String
+}
+
+model source_files {
+  path      String   @id @unique
+  updatedAt DateTime @default(now())
+  file_size Int
+}
