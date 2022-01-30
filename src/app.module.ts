@@ -13,7 +13,7 @@ import { join } from 'path';
       rootPath: join(__dirname, '../..', 'frontend/dist'),
     }),
     ],
-  controllers: [AppController],
+  controllers: [],
   providers: [AppService, DailyCasesService, PrismaService],
 })
 export class AppModule {}
