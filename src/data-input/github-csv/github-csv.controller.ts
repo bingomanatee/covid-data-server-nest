@@ -53,7 +53,7 @@ export class GithubCsvController {
       const fileString = await this.githubCsvService.fetchFileFromGithub(file);
       console.log('file fetched from github');
       
-      const result = await this.csvS3Service.writeStringToKey(path, fileString.substr(0, 1000));
+      const result = await this.csvS3Service.writeStringToKey(path, fileString);
       console.log('s3 written', result);
       
     } catch (err) {
