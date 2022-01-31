@@ -72,9 +72,27 @@ export class GithubCsvService {
       return {
         ...file,
         isStored: !!keys.find((object) => object.Key === file.path),
-      }
+      };
     });
     return this.files;
+  }
+
+  public async getFile(path: string) {
+    if (!this.useCache()) await this.loadFiles();
+    return this.files.find((file) => file.path === path);
+  }
+
+  public async fetchFileFromGithub(file): Promise<any> {
+    const { sha } = file;
+
+    return new Promise((done, fail) => {
+      this.repo.getBlob(sha, (err, blob) => {
+        if (err) {
+          return fail(err);
+        }
+        done(blob);
+      });
+    });
   }
 
   private async loadFiles() {

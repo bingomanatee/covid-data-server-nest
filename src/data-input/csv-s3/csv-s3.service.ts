@@ -39,7 +39,7 @@ export class CsvS3Service {
     });
   }
 
-  public writeStreamToKey(key: string) {
+  public keyWriteStream(key: string) {
     return new Promise((done, fail) => {
       this.store.createWriteStream({ key }, (err, stream) => {
         err ? fail(err) : done(stream);
