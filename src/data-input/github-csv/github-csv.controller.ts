@@ -2,7 +2,7 @@ import { Controller, Get, Put, Body } from '@nestjs/common';
 import { GithubCsvService } from './github-csv.service';
 import { Tree } from './interfaces/tree.interface';
 import { CsvS3Service } from '../csv-s3/csv-s3.service';
-
+const {inspect} = require('util')
 interface TreeData {
   files: Tree[];
   isCached: boolean;
@@ -38,9 +38,10 @@ export class GithubCsvController {
    * Loads the data in github into s3
    * @param path
    */
-  @Put(':path')
+  @Put()
   async loadPath(@Body() body: LoadPathBody) {
     // TODO: prevent writing data already saved to s3
+    console.log('body retrieved:', inspect(body));
     const { path } = body;
     const file = await this.githubCsvService.getFile(path);
     const buffer = await this.githubCsvService.fetchFileFromGithub(file);
