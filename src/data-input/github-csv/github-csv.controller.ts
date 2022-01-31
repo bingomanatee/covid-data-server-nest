@@ -50,7 +50,9 @@ export class GithubCsvController {
     console.log('found file', file);
     try {
       const buffer = await this.githubCsvService.fetchFileFromGithub(file);
+      console.log('file fetched from github');
       const s3WriteStream = await this.csvS3Service.keyWriteStream(path);
+      console.log('write stream made');
       s3WriteStream.write(buffer);
       s3WriteStream.end();
       return buffer;
