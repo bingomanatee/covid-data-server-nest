@@ -43,9 +43,14 @@ export class GithubCsvController {
     // TODO: prevent writing data already saved to s3
     console.log('body retrieved:', inspect(body));
     const { path } = body;
+    if (!path) {
+      return {error: 'no path param'};
+    }
     const file = await this.githubCsvService.getFile(path);
+    console.log('found file', file);
     const buffer = await this.githubCsvService.fetchFileFromGithub(file);
     const s3WriteStream = await this.csvS3Service.keyWriteStream(path);
+    console.log('write stream', s3WriteStream);
     s3WriteStream.write(buffer);
     s3WriteStream.end();
 

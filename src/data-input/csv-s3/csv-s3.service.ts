@@ -39,13 +39,13 @@ export class CsvS3Service {
     });
   }
 
-  public keyWriteStream(key: string) {
+  public keyWriteStream(key: string) : Promise<any> {
     return new Promise((done, fail) => {
       this.store.createWriteStream({ key }, (err, stream) => {
+        console.log('keyWriteStream stream', stream, 'err', err);
         err ? fail(err) : done(stream);
       });
     });
   }
 
-  public setKeys;
 }

@@ -79,10 +79,12 @@ export class GithubCsvService {
 
   public async getFile(path: string) {
     if (!this.useCache()) await this.loadFiles();
-    return this.files.find((file) => file.path === path);
+    const out = this.files.find((file) => file.path === path);
+    console.log('<<<<<<< --- found path ', path, 'in', this.files, ':', out, '>>>>>>>>>>>');
+    return out;
   }
 
-  public async fetchFileFromGithub(file): Promise<any> {
+  public async fetchFileFromGithub(file : Tree): Promise<any> {
     const { sha } = file;
 
     return new Promise((done, fail) => {
