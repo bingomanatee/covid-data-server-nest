@@ -3,9 +3,8 @@ const GitHub = require('github-api');
 const dayjs = require('dayjs');
 import { Tree } from './interfaces/tree.interface';
 import { CsvS3Service } from '../csv-s3/csv-s3.service';
-
-const files = [];
-const lastLoadTime = null;
+const https = require('https');
+import axios from 'axios';
 
 const cred = {
   username: 'dave@wonderlandlabs.com',
@@ -85,15 +84,26 @@ export class GithubCsvService {
   }
 
   public async fetchFileFromGithub(file : Tree): Promise<any> {
-    const { sha } = file;
-
-    return new Promise((done, fail) => {
-      this.repo.getBlob(sha, (err, blob) => {
-        if (err) {
-          return fail(err);
+    const { sha, path, url } = file;
+    console.log('fetchFileFromGithub: fetching sha', sha, 'from url', url);
+    return new Promise(async (done, fail) => {
+      
+      if (path) {
+        try {
+          console.log('loading path', path, 'from axios');
+          
+          const fileUrl = `https://raw.githubusercontent.com/Lucas-Czarnecki/COVID-19-CLEANED-JHUCSSE/master/COVID-19_CLEAN/csse_covid_19_clean_data/${path}`;
+          
+          const response = await axios.get(fileUrl);
+          console.log('got a response for ', fileUrl);
+          done(response.data);
+        
+        } catch (e) {
+          console.log('error requesting ', e);
         }
-        done(blob);
-      });
+      }  else {
+        fail (new Error('no path'));
+      }
     });
   }
 
