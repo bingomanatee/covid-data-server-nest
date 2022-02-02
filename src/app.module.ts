@@ -6,6 +6,7 @@ import { PrismaService } from './prisma/prisma.service';
 import { DataInputModule } from './data-input/data-input.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { SourceFilesController } from './source-files/source-files.controller';
 
 @Module({
   imports: [DataInputModule,
@@ -13,7 +14,7 @@ import { join } from 'path';
       rootPath: join(__dirname, '../..', 'frontend/dist'),
     }),
     ],
-  controllers: [],
+  controllers: [SourceFilesController],
   providers: [AppService, DailyCasesService, PrismaService],
 })
 export class AppModule {}
