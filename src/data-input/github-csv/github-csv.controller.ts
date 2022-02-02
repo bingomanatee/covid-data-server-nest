@@ -38,7 +38,7 @@ export class GithubCsvController {
   }
 
   private async updateInfoOfS3(path, data) {
-    if (data && data.Length) {
+    if (data && data.ContentLength) {
       //ts-ignore
       await this.prismaService.source_files
         .upsert({
@@ -46,13 +46,13 @@ export class GithubCsvController {
             path: path,
           },
           update: {
-            file_size: data.Length,
+            file_size: data.ContentLength,
             save_started: null,
             save_finished: null,
           },
           create: {
             path: path,
-            file_size: data.Length,
+            file_size: data.ContentLength,
             save_started: null,
             save_finished: null,
           },
