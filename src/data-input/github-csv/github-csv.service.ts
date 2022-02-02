@@ -79,30 +79,36 @@ export class GithubCsvService {
   public async getFile(path: string) {
     if (!this.useCache()) await this.loadFiles();
     const out = this.files.find((file) => file.path === path);
-    console.log('<<<<<<< --- found path ', path, 'in', this.files, ':', out, '>>>>>>>>>>>');
+    console.log(
+      '<<<<<<< --- found path ',
+      path,
+      'in',
+      this.files,
+      ':',
+      out,
+      '>>>>>>>>>>>',
+    );
     return out;
   }
 
-  public async fetchFileFromGithub(file : Tree): Promise<any> {
+  public async fetchFileFromGithub(file: Tree): Promise<any> {
     const { sha, path, url } = file;
     console.log('fetchFileFromGithub: fetching sha', sha, 'from url', url);
     return new Promise(async (done, fail) => {
-      
       if (path) {
         try {
           console.log('loading path', path, 'from axios');
-          
+
           const fileUrl = `https://raw.githubusercontent.com/Lucas-Czarnecki/COVID-19-CLEANED-JHUCSSE/master/COVID-19_CLEAN/csse_covid_19_clean_data/${path}`;
-          
+
           const response = await axios.get(fileUrl);
           console.log('got a response for ', fileUrl);
           done(response.data);
-        
         } catch (e) {
           console.log('error requesting ', e);
         }
-      }  else {
-        fail (new Error('no path'));
+      } else {
+        fail(new Error('no path'));
       }
     });
   }

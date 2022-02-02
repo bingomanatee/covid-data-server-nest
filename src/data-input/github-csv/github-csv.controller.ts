@@ -2,7 +2,7 @@ import { Controller, Get, Put, Body } from '@nestjs/common';
 import { GithubCsvService } from './github-csv.service';
 import { Tree } from './interfaces/tree.interface';
 import { CsvS3Service } from '../csv-s3/csv-s3.service';
-import {PrismaService} from './../../prisma/prisma.service';
+import { PrismaService } from './../../prisma/prisma.service';
 
 const { inspect } = require('util');
 interface TreeData {
@@ -36,11 +36,12 @@ export class GithubCsvController {
       lastSaved,
     };
   }
-  
+
   private async updateInfoOfS3(path, data) {
-      if (data && data.Length) {
-        //ts-ignore
-         await this.prismaService.source_files.upsert({
+    if (data && data.Length) {
+      //ts-ignore
+      await this.prismaService.source_files
+        .upsert({
           where: {
             path: path,
           },
@@ -55,8 +56,13 @@ export class GithubCsvController {
             save_started: null,
             save_finished: null,
           },
+        })
+        .then((result) => {
+          console.log('file size updated; result = ', result);
         });
-      }
+    } else {
+      console.log('not saving s3 data = no length in ', data);
+    }
   }
 
   /**
@@ -75,12 +81,13 @@ export class GithubCsvController {
     try {
       const fileString = await this.githubCsvService.fetchFileFromGithub(file);
       console.log('file fetched from github');
-      
+
       const result = await this.csvS3Service.writeStringToKey(path, fileString);
       console.log('s3 written', result);
-      
+
       try {
         const s3Info = await this.csvS3Service.getBucketInfo(path);
+        console.log("--- retrieved s3Info", s3Info);
         await this.updateInfoOfS3(path, s3Info);
         const savedFileData = await this.prismaService.source_files.findUnique({
           where: {
@@ -96,8 +103,6 @@ export class GithubCsvController {
         console.log('---- error getting / saving s3Info');
         throw err;
       }
-      
-      
     } catch (err) {
       console.log('error writing stream:', err.message);
       return { error: err.message };
