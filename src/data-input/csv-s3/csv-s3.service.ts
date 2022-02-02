@@ -1,21 +1,19 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { S3Client, PutObjectCommand , ListObjectsCommand} from "@aws-sdk/client-s3";
-const { Readable } = require('stream');
-import {Blob} from 'buffer';
-const fs = require('fs');
-import { Upload } from "@aws-sdk/lib-storage";
+import { Readable } from 'stream';
 
-const bucketIdentity = {
-  endpoint: 'https://s3.us-west-2.amazonaws.com',
-  region: 'us-west-2',
-/*  accessKeyId : process.env.AWS_BUCKET_ACCESS_KEY,
-  secretAccessKey: process.env.AWS_BUCKET_SECRET,*/
-};
+const S3 = require('aws-sdk/clients/s3');
+const S3BlobStore = require('s3-blob-store');
 
 type ObjectKeys = {
   Key: string;
 };
 
+const bucketIdentity = {
+  endpoint: 'https://s3.us-west-2.amazonaws.com',
+  accessKeyId : process.env.AWS_BUCKET_ACCESS_KEY,
+  secretAccessKey: process.env.AWS_BUCKET_SECRET,
+  apiVersion: '2006-03-01'
+};
 console.log('bucket identity', bucketIdentity);
 
 @Injectable()
@@ -26,26 +24,45 @@ export class CsvS3Service {
 
   constructor(@Inject('bucket') bucket: string) {
     this.bucket = bucket;
-    this.s3 = new S3Client(bucketIdentity);
+    this.s3 = new S3(bucketIdentity);
 
+    this.store = S3BlobStore({
+      client: this.s3,
+      bucket: this.bucket,
+    });
   }
-
+  
+  public async getBucketInfo(key: string) {
+  const params = {
+    Bucket:  this.bucket, 
+    Key: key
+   };
+   return new Promise((done, fail) => {
+      this.s3.headObject(params, function(err, data) {
+     if (err) fail(err);
+     done(data);
+    });
+   });
+  }
+  
   public async getBucketKeys(): Promise<ObjectKeys[]> {
-    return new Promise(async (done, fail) => {
-      try {
-      const data = await this.s3.send(new ListObjectsCommand({Bucket: this.bucket}));
-      console.log('getBucketKeys fetched', data);
-      done(data.Contents);
-      } catch (err) {
-        fail(err);
-      }
+    return new Promise((done, fail) => {
+      return this.s3.listObjects(
+        {
+          Bucket: this.bucket,
+        },
+        (err, result) => {
+          if (err) return fail(err);
+          done(result.Contents);
+        },
+      );
     });
   }
 
   public async writeStringToKey(key: string, data: string) {
- /*   const param = {
-          Bucket: 'sql-dev',
-          Key: 'Report',
+    const param = {
+          Bucket: this.bucket,
+          Key: key,
           Body: Buffer.from(data)
       }; 
       
@@ -57,28 +74,7 @@ export class CsvS3Service {
             done(result);
           }
         });
-      })*/
-      
-
-    const filePath = `../s3-scratch/${key}`;
-    await fs.writeFile(filePath, data, async (err) => {
-      console.log('file written ? eror =', err)
-         const stream = fs.createReadStream(filePath);
-         const params = {
-          Bucket: this.bucket,
-          Body: stream,
-          Key: key
-        };
-        
-        const upload = new Upload({
-          params,
-          client: this.s3,
-          queueSize: 3,
-        });
-            
-        const result = await upload.done();
-        return result;
-    });
+      })
   }
 
 }

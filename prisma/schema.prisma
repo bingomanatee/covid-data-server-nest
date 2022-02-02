@@ -81,7 +81,8 @@ model locations {
 }
 
 model source_files {
-  path      String   @id @unique
-  updatedAt DateTime @default(now())
-  file_size Int
+  path           String   @id @unique
+  save_started   DateTime?
+  save_finished  DateTime?
+  file_size      Int
 }
