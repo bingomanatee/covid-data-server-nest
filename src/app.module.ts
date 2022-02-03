@@ -7,6 +7,7 @@ import { DataInputModule } from './data-input/data-input.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { SourceFilesController } from './source-files/source-files.controller';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -14,7 +15,8 @@ import { SourceFilesController } from './source-files/source-files.controller';
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '../..', 'frontend/dist'),
     }),
-    ],
+    ScheduleModule.forRoot(),
+  ],
   controllers: [SourceFilesController],
   providers: [AppService, DailyCasesService, PrismaService],
 })

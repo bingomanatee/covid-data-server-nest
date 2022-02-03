@@ -23,6 +23,11 @@ export class GithubCsvController {
     private prismaService: PrismaService,
   ) {}
 
+  @Get('fileData')
+  async getFilesFromGithub() {
+    return this.githubCsvService.updateFilesFromGithub();
+  }
+
   @Get()
   async findAll(): Promise<TreeData> {
     const isCached = this.githubCsvService.useCache();

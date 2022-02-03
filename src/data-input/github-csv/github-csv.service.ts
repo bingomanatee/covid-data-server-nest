@@ -6,6 +6,7 @@ import { Tree } from './interfaces/tree.interface';
 import { CsvS3Service } from '../csv-s3/csv-s3.service';
 import axios from 'axios';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Cron } from '@nestjs/schedule';
 
 const cred = {
   username: 'dave@wonderlandlabs.com',
@@ -85,15 +86,6 @@ export class GithubCsvService {
   public async getFile(path: string) {
     if (!this.useCache()) await this.loadFiles();
     const out = this.files.find((file) => file.path === path);
-    console.log(
-      '<<<<<<< --- found path ',
-      path,
-      'in',
-      this.files,
-      ':',
-      out,
-      '>>>>>>>>>>>',
-    );
     return out;
   }
 
@@ -197,5 +189,19 @@ export class GithubCsvService {
       /^CSSE_DailyReports[\d]*\.csv$/.test(t.path),
     );
     this.lastLoadTime = dayjs();
+  }
+
+  @Cron('0 */30 9-17 * * *')
+  async updateFilesFromGithub() {
+    const files = await this.getFiles();
+    const s3Data = await Promise.all(
+      files.map((file) => this.s3Service.getBucketInfo(file.path)),
+    );
+    return files.map((file, i) => {
+      return {
+        file,
+        s3Data: s3Data[i],
+      };
+    });
   }
 }
