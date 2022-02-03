@@ -193,7 +193,9 @@ export class GithubCsvService {
       'COVID-19_CLEAN/csse_covid_19_clean_data',
       tree,
     );
-    this.files = subTree.filter((t) => /^CSSE_DailyReports.*csv$/.test(t.path));
+    this.files = subTree.filter((t) =>
+      /^CSSE_DailyReports[\d]*\.csv$/.test(t.path),
+    );
     this.lastLoadTime = dayjs();
   }
 }
