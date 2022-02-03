@@ -9,8 +9,9 @@ import { join } from 'path';
 import { SourceFilesController } from './source-files/source-files.controller';
 
 @Module({
-  imports: [DataInputModule,
-      ServeStaticModule.forRoot({
+  imports: [
+    DataInputModule,
+    ServeStaticModule.forRoot({
       rootPath: join(__dirname, '../..', 'frontend/dist'),
     }),
     ],
