@@ -3,5 +3,6 @@ export interface Tree {
     path: string,
     sha: string, 
     tree: Array<Tree> | null,
-    url?: string
+    url?: string,
+    size?: number
 }

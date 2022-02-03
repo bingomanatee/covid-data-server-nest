@@ -23,9 +23,12 @@ export class GithubCsvController {
     private prismaService: PrismaService,
   ) {}
 
-  @Get('fileData')
+  @Get('fileinfo')
   async getFilesFromGithub() {
-    return this.githubCsvService.updateFilesFromGithub();
+    console.log('---- getFilesFromGithub STARTING:', );
+    const out = await this.githubCsvService.updateFilesFromGithub();
+    console.log('---- getFilesFromGithub result:', out);
+    return out;
   }
 
   @Get()

@@ -7,6 +7,7 @@ import { CsvS3Service } from '../csv-s3/csv-s3.service';
 import axios from 'axios';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Cron } from '@nestjs/schedule';
+import _ from 'lodash';
 
 const cred = {
   username: 'dave@wonderlandlabs.com',
@@ -41,7 +42,6 @@ export class GithubCsvService {
       return this.climbTree(path.split('/'), tree);
     }
 
-    console.log('tree is ', tree);
     const { sha } = tree;
 
     const { data } = await this.repo.getTree(sha);
@@ -51,15 +51,6 @@ export class GithubCsvService {
 
     const subTree = data.tree.find((t) => t.path === dir);
     if (!subTree) {
-      console.log(
-        'cannot find ',
-        dir,
-        'in',
-        data.tree,
-        '(remaining: ',
-        path,
-        ')',
-      );
       return null;
     }
 
@@ -73,7 +64,6 @@ export class GithubCsvService {
   public async getFiles(): Promise<Array<Tree>> {
     if (!this.useCache()) await this.loadFiles();
     const keys = await this.s3Service.getBucketKeys();
-    console.log('--- bucket keys', keys);
     this.files = this.files.map((file) => {
       return {
         ...file,
@@ -93,14 +83,11 @@ export class GithubCsvService {
     const file = await this.getFile(path);
     try {
       const fileString = await this.fetchFileFromGithub(file);
-      console.log('file fetched from github');
 
       const result = await this.s3Service.writeStringToKey(path, fileString);
-      console.log('s3 written', result);
 
       try {
         const s3Info = await this.s3Service.getBucketInfo(path);
-        console.log('--- retrieved s3Info', s3Info);
         await this.updateInfoOfS3(path, s3Info);
         const savedFileData = await this.prismaService.source_files.findUnique({
           where: {
@@ -152,16 +139,12 @@ export class GithubCsvService {
 
   public async fetchFileFromGithub(file: Tree): Promise<any> {
     const { sha, path, url } = file;
-    console.log('fetchFileFromGithub: fetching sha', sha, 'from url', url);
+    
     return new Promise(async (done, fail) => {
       if (path) {
         try {
-          console.log('loading path', path, 'from axios');
-
           const fileUrl = `https://raw.githubusercontent.com/Lucas-Czarnecki/COVID-19-CLEANED-JHUCSSE/master/COVID-19_CLEAN/csse_covid_19_clean_data/${path}`;
-
           const response = await axios.get(fileUrl);
-          console.log('got a response for ', fileUrl);
           done(response.data);
         } catch (e) {
           console.log('error requesting ', e);
@@ -197,11 +180,31 @@ export class GithubCsvService {
     const s3Data = await Promise.all(
       files.map((file) => this.s3Service.getBucketInfo(file.path)),
     );
-    return files.map((file, i) => {
+    console.log( 'updateFilesFromGithub', 
+      '--- files: ', files, 's3Data', s3Data
+    )
+    const data = files.map((file, i) => {
       return {
         file,
         s3Data: s3Data[i],
       };
     });
+    
+    const loadPaths = [];
+    data.forEach(({
+      file,
+      s3Data
+    }) => {
+      if ((!s3Data) 
+      || (_.get(s3Data, 'ContentLength') !== file.size)) {
+        loadPaths.push(file.path);
+      }
+    });
+    
+    await Promise.all(
+      loadPaths.map(path => this.loadPath(path))
+      );
+    
+    return data;
   }
 }
