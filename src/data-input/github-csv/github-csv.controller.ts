@@ -37,34 +37,6 @@ export class GithubCsvController {
     };
   }
 
-  private async updateInfoOfS3(path, data) {
-    if (data && data.ContentLength) {
-      //ts-ignore
-      await this.prismaService.source_files
-        .upsert({
-          where: {
-            path: path,
-          },
-          update: {
-            file_size: data.ContentLength,
-            save_started: null,
-            save_finished: null,
-          },
-          create: {
-            path: path,
-            file_size: data.ContentLength,
-            save_started: null,
-            save_finished: null,
-          },
-        })
-        .then((result) => {
-          console.log('file size updated; result = ', result);
-        });
-    } else {
-      console.log('not saving s3 data = no length in ', data);
-    }
-  }
-
   /**
    * Loads the data in github into s3
    * @param path
@@ -77,35 +49,6 @@ export class GithubCsvController {
     if (!path) {
       return { error: 'no path param' };
     }
-    const file = await this.githubCsvService.getFile(path);
-    try {
-      const fileString = await this.githubCsvService.fetchFileFromGithub(file);
-      console.log('file fetched from github');
-
-      const result = await this.csvS3Service.writeStringToKey(path, fileString);
-      console.log('s3 written', result);
-
-      try {
-        const s3Info = await this.csvS3Service.getBucketInfo(path);
-        console.log("--- retrieved s3Info", s3Info);
-        await this.updateInfoOfS3(path, s3Info);
-        const savedFileData = await this.prismaService.source_files.findUnique({
-          where: {
-            path: path,
-          },
-        });
-        if (savedFileData) {
-          return savedFileData;
-        } else {
-          throw new Error('file saved; cannot retrieve saved_files data');
-        }
-      } catch (err) {
-        console.log('---- error getting / saving s3Info');
-        throw err;
-      }
-    } catch (err) {
-      console.log('error writing stream:', err.message);
-      return { error: err.message };
-    }
+    return this.githubCsvService.loadPath(path);
   }
 }

@@ -1,10 +1,11 @@
 import { Injectable, Inject } from '@nestjs/common';
 const GitHub = require('github-api');
 const dayjs = require('dayjs');
+
 import { Tree } from './interfaces/tree.interface';
 import { CsvS3Service } from '../csv-s3/csv-s3.service';
-const https = require('https');
 import axios from 'axios';
+import { PrismaService } from '../../prisma/prisma.service';
 
 const cred = {
   username: 'dave@wonderlandlabs.com',
@@ -19,11 +20,16 @@ export class GithubCsvService {
   private files: Array<Tree>;
   public lastLoadTime: any;
   private s3Service: any;
-  constructor(@Inject(CsvS3Service) s3Service) {
+  private prismaService: any;
+  constructor(
+    @Inject(CsvS3Service) s3Service,
+    @Inject(PrismaService) prismaService,
+  ) {
     this.gh = new GitHub(cred);
     this.repo = this.gh.getRepo('Lucas-Czarnecki', 'COVID-19-CLEANED-JHUCSSE');
     this.files = [];
     this.s3Service = s3Service;
+    this.prismaService = prismaService;
   }
 
   public async climbTree(
@@ -89,6 +95,67 @@ export class GithubCsvService {
       '>>>>>>>>>>>',
     );
     return out;
+  }
+
+  public async loadPath(path: string) {
+    const file = await this.getFile(path);
+    try {
+      const fileString = await this.fetchFileFromGithub(file);
+      console.log('file fetched from github');
+
+      const result = await this.s3Service.writeStringToKey(path, fileString);
+      console.log('s3 written', result);
+
+      try {
+        const s3Info = await this.s3Service.getBucketInfo(path);
+        console.log('--- retrieved s3Info', s3Info);
+        await this.updateInfoOfS3(path, s3Info);
+        const savedFileData = await this.prismaService.source_files.findUnique({
+          where: {
+            path: path,
+          },
+        });
+        if (savedFileData) {
+          return savedFileData;
+        } else {
+          throw new Error('file saved; cannot retrieve saved_files data');
+        }
+      } catch (err) {
+        console.log('---- error getting / saving s3Info');
+        throw err;
+      }
+    } catch (err) {
+      console.log('error writing stream:', err.message);
+      return { error: err.message };
+    }
+  }
+
+  public async updateInfoOfS3(path, data) {
+    if (data && data.ContentLength) {
+      //ts-ignore
+      await this.prismaService.source_files
+        .upsert({
+          where: {
+            path: path,
+          },
+          update: {
+            file_size: data.ContentLength,
+            save_started: null,
+            save_finished: null,
+          },
+          create: {
+            path: path,
+            file_size: data.ContentLength,
+            save_started: null,
+            save_finished: null,
+          },
+        })
+        .then((result) => {
+          console.log('file size updated; result = ', result);
+        });
+    } else {
+      console.log('not saving s3 data = no length in ', data);
+    }
   }
 
   public async fetchFileFromGithub(file: Tree): Promise<any> {
