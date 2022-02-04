@@ -1,8 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { Readable } from 'stream';
 
 const S3 = require('aws-sdk/clients/s3');
-const S3BlobStore = require('s3-blob-store');
+//const S3BlobStore = require('s3-blob-store');
 
 type ObjectKeys = {
   Key: string;
@@ -18,18 +17,12 @@ console.log('bucket identity', bucketIdentity);
 
 @Injectable()
 export class CsvS3Service {
-  store: any;
   bucket: any;
   s3: any;
 
   constructor(@Inject('bucket') bucket: string) {
     this.bucket = bucket;
     this.s3 = new S3(bucketIdentity);
-
-    this.store = S3BlobStore({
-      client: this.s3,
-      bucket: this.bucket,
-    });
   }
 
   public async getBucketInfo(key: string) {
