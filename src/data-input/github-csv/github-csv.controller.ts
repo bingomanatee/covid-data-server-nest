@@ -25,9 +25,7 @@ export class GithubCsvController {
 
   @Get('fileinfo')
   async getFilesFromGithub() {
-    console.log('---- getFilesFromGithub STARTING:', );
     const out = await this.githubCsvService.updateFilesFromGithub();
-    console.log('---- getFilesFromGithub result:', out);
     return out;
   }
 

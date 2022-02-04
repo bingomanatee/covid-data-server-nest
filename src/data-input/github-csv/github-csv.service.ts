@@ -139,7 +139,7 @@ export class GithubCsvService {
 
   public async fetchFileFromGithub(file: Tree): Promise<any> {
     const { sha, path, url } = file;
-    
+
     return new Promise(async (done, fail) => {
       if (path) {
         try {
@@ -180,7 +180,7 @@ export class GithubCsvService {
     const s3Data = await Promise.all(
       files.map((file) => this.s3Service.getBucketInfo(file.path)),
     );
-    console.log( 'updateFilesFromGithub', 
+    console.log( 'updateFilesFromGithub',
       '--- files: ', files, 's3Data', s3Data
     )
     const data = files.map((file, i) => {
@@ -189,22 +189,16 @@ export class GithubCsvService {
         s3Data: s3Data[i],
       };
     });
-    
+
     const loadPaths = [];
-    data.forEach(({
-      file,
-      s3Data
-    }) => {
-      if ((!s3Data) 
-      || (_.get(s3Data, 'ContentLength') !== file.size)) {
+    data.forEach(({ file, s3Data }) => {
+      if (!s3Data || _.get(s3Data, 'ContentLength') !== file.size) {
         loadPaths.push(file.path);
       }
     });
-    
-    await Promise.all(
-      loadPaths.map(path => this.loadPath(path))
-      );
-    
+
+    await Promise.all(loadPaths.map((path) => this.loadPath(path)));
+
     return data;
   }
 }
