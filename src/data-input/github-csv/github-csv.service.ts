@@ -1,4 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
+
 const GitHub = require('github-api');
 const dayjs = require('dayjs');
 
@@ -8,6 +9,8 @@ import axios from 'axios';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Cron } from '@nestjs/schedule';
 import _ from 'lodash';
+
+const CsvReadableStream = require('csv-reader');
 
 const cred = {
   username: 'dave@wonderlandlabs.com',
@@ -23,6 +26,7 @@ export class GithubCsvService {
   public lastLoadTime: any;
   private s3Service: any;
   private prismaService: any;
+
   constructor(
     @Inject(CsvS3Service) s3Service,
     @Inject(PrismaService) prismaService,
@@ -88,7 +92,7 @@ export class GithubCsvService {
 
       try {
         const s3Info = await this.s3Service.getBucketInfo(path);
-        await this.updateInfoOfS3(path, s3Info);
+        await this.updateSourceFileDataForPath(path, s3Info);
         const savedFileData = await this.prismaService.source_files.findUnique({
           where: {
             path: path,
@@ -109,7 +113,7 @@ export class GithubCsvService {
     }
   }
 
-  public async updateInfoOfS3(path, data) {
+  public async updateSourceFileDataForPath(path, data) {
     if (data && data.ContentLength) {
       //ts-ignore
       await this.prismaService.source_files
@@ -174,15 +178,29 @@ export class GithubCsvService {
     this.lastLoadTime = dayjs();
   }
 
-  @Cron('0 */30 9-17 * * *')
+  @Cron('0 */20 * * * *')
+  async writeS3Data() {
+    const newS3File = await this.prismaService.findFirst({
+      where: {
+        save_started: null,
+      },
+      orderBy: {
+        path: 'asc',
+      },
+    });
+
+    if (newS3File) {
+      this.writeS3FileRows(newS3File); // note - not waiting for async result here
+    }
+  }
+
+  @Cron('0 */15 * * * *')
   async updateFilesFromGithub() {
     const files = await this.getFiles();
     const s3Data = await Promise.all(
       files.map((file) => this.s3Service.getBucketInfo(file.path)),
     );
-    console.log( 'updateFilesFromGithub',
-      '--- files: ', files, 's3Data', s3Data
-    )
+
     const data = files.map((file, i) => {
       return {
         file,
@@ -200,5 +218,34 @@ export class GithubCsvService {
     await Promise.all(loadPaths.map((path) => this.loadPath(path)));
 
     return data;
+  }
+
+  private async writeS3FileRows(newS3File: any) {
+    await this.prismaService.source_files.update({
+      where: {
+        path: newS3File.path,
+      },
+      data: {
+        save_started: new Date(),
+        save_finished: null,
+      },
+    });
+
+    const inputStream = await this.s3Service.readKeyStream(newS3File.path);
+    let rowCount = 0;
+    inputStream
+      .pipe(
+        new CsvReadableStream({
+          parseNumbers: true,
+          parseBooleans: true,
+          trim: true,
+        }),
+      )
+      .on('data', function (row) {
+        if (++rowCount < 4) console.log('A row for: ', newS3File.path, row);
+      })
+      .on('end', function () {
+        console.log('No more rows!', newS3File.path);
+      });
   }
 }

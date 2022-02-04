@@ -63,10 +63,20 @@ export class CsvS3Service {
       this.s3.putObject(param, (err, result) => {
         if (err) {
           console.log('put error:', err);
+          fail(err);
         } else {
           done(result);
         }
       });
     });
+  }
+
+  public readKeyStream(key: string) {
+    const param = {
+      Bucket: this.bucket,
+      Key: key,
+    };
+
+    return this.s3.getObject(param).getStream();
   }
 }

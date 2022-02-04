@@ -31,6 +31,7 @@
     "@prisma/client": "3.9.0",
     "@types/cron": "^1.7.3",
     "aws-sdk": "^2.1066.0",
+    "csv-reader": "^1.0.8",
     "dayjs": "^1.10.7",
     "github-api": "^3.4.0",
     "prisma": "^3.9.0",
