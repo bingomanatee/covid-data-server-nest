@@ -3,6 +3,7 @@ import { GithubCsvService } from './github-csv.service';
 import { Tree } from './interfaces/tree.interface';
 import { CsvS3Service } from '../csv-s3/csv-s3.service';
 import { PrismaService } from './../../prisma/prisma.service';
+import { FileInfo } from './file.info';
 
 const { inspect } = require('util');
 interface TreeData {
@@ -37,7 +38,7 @@ export class GithubCsvController {
       : '';
     const files = await this.githubCsvService.getFiles();
     return {
-      files,
+      files: files as Tree[],
       isCached,
       lastSaved,
     };

@@ -1,14 +1,15 @@
-import { Injectable, Inject } from '@nestjs/common';
-
-const GitHub = require('github-api');
-const dayjs = require('dayjs');
-
+import { Inject, Injectable } from '@nestjs/common';
 import { Tree } from './interfaces/tree.interface';
 import { CsvS3Service } from '../csv-s3/csv-s3.service';
 import axios from 'axios';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Cron } from '@nestjs/schedule';
 import _ from 'lodash';
+import { S3ToDatabaseService } from '../s3-to-database/s3-to-database.service';
+import { FileInfo } from './file.info';
+
+const GitHub = require('github-api');
+const dayjs = require('dayjs');
 
 const CsvReadableStream = require('csv-reader');
 
@@ -20,22 +21,43 @@ const cred = {
 // unauthenticated client
 @Injectable()
 export class GithubCsvService {
-  private gh: any;
-  private repo: any;
-  private files: Array<Tree>;
   public lastLoadTime: any;
   private s3Service: any;
   private prismaService: any;
+  private s3DoTB: any;
 
   constructor(
     @Inject(CsvS3Service) s3Service,
     @Inject(PrismaService) prismaService,
-  ) {
-    this.gh = new GitHub(cred);
-    this.repo = this.gh.getRepo('Lucas-Czarnecki', 'COVID-19-CLEANED-JHUCSSE');
-    this.files = [];
-    this.s3Service = s3Service;
-    this.prismaService = prismaService;
+    @Inject(S3ToDatabaseService) s3ToDB,
+  ) {}
+
+  private _gh;
+  get gh() {
+    if (!this._gh) {
+      this._gh = new GitHub(cred);
+    }
+    return this._gh;
+  }
+
+  private _files;
+  get files(): Tree[] {
+    if (!this._files) this._files = [];
+    return this._files;
+  }
+  set files(values: Tree[]) {
+    this._files = values;
+  }
+
+  private _repo = null;
+  get repo() {
+    if (!this._repo) {
+      this._repo = this.gh.getRepo(
+        'Lucas-Czarnecki',
+        'COVID-19-CLEANED-JHUCSSE',
+      );
+    }
+    return this._repo;
   }
 
   public async climbTree(
@@ -65,7 +87,7 @@ export class GithubCsvService {
     return this.lastLoadTime && this.lastLoadTime.diff(dayjs(), 'minutes') < 5;
   }
 
-  public async getFiles(): Promise<Array<Tree>> {
+  public async getFiles(withS3 = false): Promise<Array<Tree | FileInfo>> {
     if (!this.useCache()) await this.loadFiles();
     const keys = await this.s3Service.getBucketKeys();
     this.files = this.files.map((file) => {
@@ -74,7 +96,16 @@ export class GithubCsvService {
         isStored: !!keys.find((object) => object.Key === file.path),
       };
     });
-    return this.files;
+    if (withS3) {
+      const files = [...this.files];
+      const s3Data = await Promise.all(
+        files.map((file) => this.s3Service.getBucketInfo(file.path)),
+      );
+
+      return files.map((file, i) => {
+        return { file, s3Data: s3Data[i] };
+      });
+    } else return this.files;
   }
 
   public async getFile(path: string) {
@@ -178,9 +209,46 @@ export class GithubCsvService {
     this.lastLoadTime = dayjs();
   }
 
+  /**
+   * This repeated task looks at the github repo and loads new files into s3
+   * if they are not in the database.
+   */
+  @Cron('0 */15 * * * *')
+  async updateFilesFromGithub() {
+    const fileList = await this.getFiles(true);
+
+    const loadPaths = this.getNewOrChangedPaths(fileList as FileInfo[]);
+    await Promise.all(loadPaths.map((path) => this.loadPath(path)));
+
+    return fileList;
+  }
+
+  /**
+   * This is a repeated routine that looks at the first
+   * un-loaded source (s3) file -- indicated by the absence of save_started --
+   * and writes its rows to the dataset
+   */
   @Cron('0 */20 * * * *')
   async writeS3Data() {
-    const newS3File = await this.prismaService.findFirst({
+    const newS3File = await this.firstUnsavedSourceFile();
+
+    if (newS3File) {
+      await this.s3DoTB.writeS3FileRows(newS3File); // note - not waiting for async result here
+    }
+  }
+
+  private getNewOrChangedPaths(fileList: FileInfo[]) {
+    const loadPaths = [];
+    fileList.forEach(({ file, s3Data }) => {
+      if (!s3Data || _.get(s3Data, 'ContentLength') !== file.size) {
+        loadPaths.push(file.path);
+      }
+    });
+    return loadPaths;
+  }
+
+  private async firstUnsavedSourceFile() {
+    return this.prismaService.source_files.findFirst({
       where: {
         save_started: null,
       },
@@ -188,64 +256,5 @@ export class GithubCsvService {
         path: 'asc',
       },
     });
-
-    if (newS3File) {
-      this.writeS3FileRows(newS3File); // note - not waiting for async result here
-    }
-  }
-
-  @Cron('0 */15 * * * *')
-  async updateFilesFromGithub() {
-    const files = await this.getFiles();
-    const s3Data = await Promise.all(
-      files.map((file) => this.s3Service.getBucketInfo(file.path)),
-    );
-
-    const data = files.map((file, i) => {
-      return {
-        file,
-        s3Data: s3Data[i],
-      };
-    });
-
-    const loadPaths = [];
-    data.forEach(({ file, s3Data }) => {
-      if (!s3Data || _.get(s3Data, 'ContentLength') !== file.size) {
-        loadPaths.push(file.path);
-      }
-    });
-
-    await Promise.all(loadPaths.map((path) => this.loadPath(path)));
-
-    return data;
-  }
-
-  private async writeS3FileRows(newS3File: any) {
-    await this.prismaService.source_files.update({
-      where: {
-        path: newS3File.path,
-      },
-      data: {
-        save_started: new Date(),
-        save_finished: null,
-      },
-    });
-
-    const inputStream = await this.s3Service.readKeyStream(newS3File.path);
-    let rowCount = 0;
-    inputStream
-      .pipe(
-        new CsvReadableStream({
-          parseNumbers: true,
-          parseBooleans: true,
-          trim: true,
-        }),
-      )
-      .on('data', function (row) {
-        if (++rowCount < 4) console.log('A row for: ', newS3File.path, row);
-      })
-      .on('end', function () {
-        console.log('No more rows!', newS3File.path);
-      });
   }
 }

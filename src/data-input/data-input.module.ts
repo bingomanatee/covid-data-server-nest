@@ -3,7 +3,9 @@ import { CsvS3Service } from './csv-s3/csv-s3.service';
 import { GithubCsvService } from './github-csv/github-csv.service';
 import { GithubCsvController } from './github-csv/github-csv.controller';
 import { CsvS3Controller } from './csv-s3/csv-s3.controller';
-import {PrismaService} from '../prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { S3ToDatabaseService } from './s3-to-database/s3-to-database.service';
+import CsvReadableStream from 'csv-reader';
 
 @Module({
   providers: [
@@ -14,6 +16,7 @@ import {PrismaService} from '../prisma/prisma.service';
       provide: 'bucket',
       useValue: 'covid-csv-storage',
     },
+    S3ToDatabaseService,
   ],
   controllers: [GithubCsvController, CsvS3Controller],
 })
