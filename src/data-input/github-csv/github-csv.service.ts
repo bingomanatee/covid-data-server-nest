@@ -7,24 +7,25 @@ import { Cron } from '@nestjs/schedule';
 const lGet = require('lodash/get');
 import { S3ToDatabaseService } from '../s3-to-database/s3-to-database.service';
 import { FileInfo } from './file.info';
-import {LoggingService} from './../../logging/logging.service';
+import { LoggingService } from './../../logging/logging.service';
 const GitHub = require('github-api');
 const dayjs = require('dayjs');
+const path = require('path');
 
 const cred = {
-  token: process.env.GITHUB_TOKEN
+  token: process.env.GITHUB_TOKEN,
 };
 
 // unauthenticated client
 @Injectable()
 export class GithubCsvService {
   public lastLoadTime: any;
-  
+
   private s3Service: any;
   private prismaService: any;
   private s3ToDB: any;
   private loggingService: any;
-    _loading: any;
+  _loading: any;
 
   constructor(
     @Inject(CsvS3Service) s3Service,
@@ -76,22 +77,24 @@ export class GithubCsvService {
 
     const { sha } = tree;
 
-
     let response;
     try {
-        response = await this.repo.getTree(sha)
-        .catch ((err) => {
-              this.loggingService.error('github-csv-service: error getting data from github: %s', 
-      err.message);
-      throw err;
-        });
+      response = await this.repo.getTree(sha).catch((err) => {
+        this.loggingService.error(
+          'github-csv-service: error getting data from github: %s',
+          err.message,
+        );
+        throw err;
+      });
     } catch (err) {
-      this.loggingService.error('github-csv-service: error getting data from github: %s', 
-      err.message);
+      this.loggingService.error(
+        'github-csv-service: error getting data from github: %s',
+        err.message,
+      );
       return [];
     }
 
-    const {data} = response;
+    const { data } = response;
     if (!path.length) return data.tree;
 
     const dir = path.shift();
@@ -228,22 +231,49 @@ export class GithubCsvService {
     });
   }
 
+  async _loadFilesFromRaw() {
+    const PATH_TEMPLATE =
+      'https://raw.githubusercontent.com/Lucas-Czarnecki/COVID-19-CLEANED-JHUCSSE/master/COVID-19_CLEAN/csse_covid_19_clean_data/CSSE_DailyReports{#}.csv';
+
+    const files = [];
+
+    const inc = 1;
+    while (inc < 10) {
+      const fullPath = PATH_TEMPLATE.replace('{#}', inc <= 1 ? '' : inc);
+      try {
+        const response = await axios.head(fullPath);
+        const name = path.basename(fullPath);
+        console.log('_loadFilesFromRaw: response headers:', response.headers);
+        files.push({
+          path: name,
+          sha: null,
+          size: Number.parseInt(response.headers('content-length')),
+        });
+      } catch (err) {
+        break;
+      }
+    }
+  }
+
   private async loadFiles() {
     let response;
     if (this._loading) return;
-    
+
     this._loading = true;
     try {
-      response = await this.repo.getBranch('master')
-    } catch (err) {;
-      this.loggingService.error('github-csv-service: loadFiles error: %s', err.message);
+      response = await this.repo.getBranch('master');
+    } catch (err) {
+      this.loggingService.error(
+        'github-csv-service: loadFiles error: %s',
+        err.message,
+      );
     }
     this._loading = false;
-    
+
     if (!response) {
-      return;
-    };
-    
+      return this._loadFilesFromRaw();
+    }
+
     const { data: branch } = response;
 
     const {
