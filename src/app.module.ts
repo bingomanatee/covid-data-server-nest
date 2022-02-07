@@ -8,6 +8,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { SourceFilesController } from './source-files/source-files.controller';
 import { ScheduleModule } from '@nestjs/schedule';
+import { LoggerProvider } from './logger/logger.service';
 
 @Module({
   imports: [
@@ -18,6 +19,6 @@ import { ScheduleModule } from '@nestjs/schedule';
     ScheduleModule.forRoot(),
   ],
   controllers: [SourceFilesController],
-  providers: [AppService, DailyCasesService, PrismaService],
+  providers: [AppService, DailyCasesService, PrismaService, LoggerProvider],
 })
 export class AppModule {}

@@ -7,6 +7,7 @@ import { Cron } from '@nestjs/schedule';
 import _ from 'lodash';
 import { S3ToDatabaseService } from '../s3-to-database/s3-to-database.service';
 import { FileInfo } from './file.info';
+import { LoggerProvider } from '../../logger/logger.service';
 
 const GitHub = require('github-api');
 const dayjs = require('dayjs');
@@ -25,11 +26,13 @@ export class GithubCsvService {
   private s3Service: any;
   private prismaService: any;
   private s3DoTB: any;
+  private logger: LoggerProvider;
 
   constructor(
     @Inject(CsvS3Service) s3Service,
     @Inject(PrismaService) prismaService,
     @Inject(S3ToDatabaseService) s3ToDB,
+    @Inject(LoggerProvider) logger,
   ) {}
 
   private _gh;
@@ -115,26 +118,37 @@ export class GithubCsvService {
   }
 
   public async loadPath(path: string) {
+    this.logger.log('loadPath: loading %s', path);
     const file = await this.getFile(path);
     try {
       const fileString = await this.fetchFileFromGithub(file);
+      this.logger.log(
+        'loadPath: loaded %s (size= %s}',
+        path,
+        fileString.length,
+      );
 
       const result = await this.s3Service.writeStringToKey(path, fileString);
 
       try {
         const s3Info = await this.s3Service.getBucketInfo(path);
-        await this.updateSourceFileDataForPath(path, s3Info);
-        const savedFileData = await this.prismaService.source_files.findUnique({
-          where: {
-            path: path,
-          },
-        });
+        const savedFileData = await this.updateSourceFileDataForPath(
+          path,
+          s3Info,
+        );
+
         if (savedFileData) {
+          this.logger.log(
+            'loadPath: file data saved as: %s',
+            JSON.stringify(savedFileData),
+          );
           return savedFileData;
         } else {
           throw new Error('file saved; cannot retrieve saved_files data');
         }
       } catch (err) {
+        this.logger.error('loadPath: %s error %s', path, err.message);
+
         console.log('---- error getting / saving s3Info');
         throw err;
       }
@@ -144,7 +158,7 @@ export class GithubCsvService {
     }
   }
 
-  public async updateSourceFileDataForPath(path, data) {
+  public async updateSourceFileDataForPath(path, data): Promise<any> {
     if (data && data.ContentLength) {
       //ts-ignore
       await this.prismaService.source_files
@@ -170,6 +184,12 @@ export class GithubCsvService {
     } else {
       console.log('not saving s3 data = no length in ', data);
     }
+
+    return await this.prismaService.source_files.findUnique({
+      where: {
+        path: path,
+      },
+    });
   }
 
   public async fetchFileFromGithub(file: Tree): Promise<any> {
@@ -215,9 +235,14 @@ export class GithubCsvService {
    */
   @Cron('0 */15 * * * *')
   async updateFilesFromGithub() {
+    this.logger.log('updateFilesFromGithub ------ start');
     const fileList = await this.getFiles(true);
 
     const loadPaths = this.getNewOrChangedPaths(fileList as FileInfo[]);
+    this.logger.log(
+      'updateFilesFromGithub ---- loadPaths is %s',
+      loadPaths.join(', '),
+    );
     await Promise.all(loadPaths.map((path) => this.loadPath(path)));
 
     return fileList;
