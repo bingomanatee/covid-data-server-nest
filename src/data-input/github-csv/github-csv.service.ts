@@ -168,13 +168,12 @@ export class GithubCsvService {
           throw new Error('file saved; cannot retrieve saved_files data');
         }
       } catch (err) {
-        this.loggingService.error('loadPath: %s error %s', path, err.message);
-
         console.log('---- error getting / saving s3Info');
         throw err;
       }
     } catch (err) {
       console.log('error writing stream:', err.message);
+        this.loggingService.error('loadPath: %s error %s', path, err.message);
       return { error: err.message };
     }
   }
@@ -239,7 +238,7 @@ export class GithubCsvService {
 
     const inc = 1;
     while (inc < 10) {
-      const fullPath = PATH_TEMPLATE.replace('{#}', inc <= 1 ? '' : inc);
+      const fullPath = PATH_TEMPLATE.replace('{#}', inc <= 1 ? '' : `${inc}`);
       try {
         const response = await axios.head(fullPath);
         const name = path.basename(fullPath);
@@ -247,7 +246,7 @@ export class GithubCsvService {
         files.push({
           path: name,
           sha: null,
-          size: Number.parseInt(response.headers('content-length')),
+          size: Number.parseInt(response.headers['content-length']),
         });
       } catch (err) {
         break;
@@ -296,7 +295,7 @@ export class GithubCsvService {
    * This repeated task looks at the github repo and loads new files into s3
    * if they are not in the database.
    */
-  @Cron('0 */15 * * * *')
+  @Cron('0 */5 * * * *')
   async updateFilesFromGithub() {
     if (!this.loggingService) {
       console.log('--- cannot find loggingService in ', this);
@@ -304,10 +303,14 @@ export class GithubCsvService {
     this.loggingService.log('updateFilesFromGithub ------ start');
     const fileList = await this.getFiles(true);
 
+    this.loggingService.log('updateFilesFromGithub checking files %s', 
+      JSON.stringify(fileList)
+    );
+    
     const loadPaths = this.getNewOrChangedPaths(fileList as FileInfo[]);
     this.loggingService.log(
-      'updateFilesFromGithub ---- loadPaths is %s',
-      loadPaths.join(', '),
+      'updateFilesFromGithub ---- loadPaths is %s (%d count)',
+      loadPaths.join(', '), loadPaths.length
     );
     await Promise.all(loadPaths.map((path) => this.loadPath(path)));
 
@@ -319,12 +322,18 @@ export class GithubCsvService {
    * un-loaded source (s3) file -- indicated by the absence of save_started --
    * and writes its rows to the dataset
    */
-  @Cron('0 */20 * * * *')
+  @Cron('0 */2 * * * *')
   async writeS3Data() {
+    this.loggingService.log('>> writeS3Data -- start');
     const newS3File = await this.firstUnsavedSourceFile();
+    this.loggingService.log('writeS3Data first unfinished row: %s', newS3File ?  JSON.stringify(newS3File) : '(none)');
 
     if (newS3File) {
-      await this.s3ToDB.writeS3FileRows(newS3File); // note - not waiting for async result here
+      try {
+        await this.s3ToDB.writeS3FileRows(newS3File); // note - not waiting for async result here
+      } catch (err) {
+        this.loggingService.error('writeS3Data: error %s', err.message);
+      }
     }
   }
 

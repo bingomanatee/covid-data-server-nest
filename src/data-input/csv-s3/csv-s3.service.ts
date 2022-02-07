@@ -1,6 +1,8 @@
 import { Injectable, Inject } from '@nestjs/common';
+import { inspect } from 'util';
 
-const S3 = require('aws-sdk/clients/s3');
+const { S3Client : S3, GetObjectCommand, HeadObjectCommand, ListObjectsCommand, PutObjectCommand } = require("@aws-sdk/client-s3");
+
 //const S3BlobStore = require('s3-blob-store');
 
 type ObjectKeys = {
@@ -12,6 +14,7 @@ const bucketIdentity = {
   accessKeyId: process.env.AWS_BUCKET_ACCESS_KEY,
   secretAccessKey: process.env.AWS_BUCKET_SECRET,
   apiVersion: '2006-03-01',
+  region: 'us-west-2'
 };
 console.log('bucket identity', bucketIdentity);
 
@@ -30,26 +33,18 @@ export class CsvS3Service {
       Bucket: this.bucket,
       Key: key,
     };
-    return new Promise((done, fail) => {
-      this.s3.headObject(params, function (err, data) {
-        if (err) fail(err);
-        done(data);
-      });
-    });
+    
+    return await this.s3.send(new HeadObjectCommand(params));
   }
 
   public async getBucketKeys(): Promise<ObjectKeys[]> {
-    return new Promise((done, fail) => {
-      return this.s3.listObjects(
-        {
-          Bucket: this.bucket,
-        },
-        (err, result) => {
-          if (err) return fail(err);
-          done(result.Contents);
-        },
-      );
-    });
+    const result = await this.s3.send(new ListObjectsCommand({
+      Bucket: this.bucket,
+      Region: 'us-west-2'
+    }));
+    
+    console.log('getBucketKeys: result = %s', inspect(result));
+    return result.Contents;
   }
 
   public async writeStringToKey(key: string, data: string) {
@@ -58,25 +53,18 @@ export class CsvS3Service {
       Key: key,
       Body: Buffer.from(data),
     };
-
-    return new Promise((done, fail) => {
-      this.s3.putObject(param, (err, result) => {
-        if (err) {
-          console.log('put error:', err);
-          fail(err);
-        } else {
-          done(result);
-        }
-      });
-    });
+    
+    return this.s3.send(new PutObjectCommand(param));
   }
 
-  public readKeyStream(key: string) {
+  public async readKeyStream(key: string) {
     const param = {
       Bucket: this.bucket,
       Key: key,
     };
 
-    return this.s3.getObject(param).getStream();
+   const command = new GetObjectCommand(param);
+    const item = await this.s3.send(command);
+    return item.Body;
   }
 }
