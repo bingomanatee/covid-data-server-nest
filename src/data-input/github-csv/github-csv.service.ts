@@ -4,36 +4,39 @@ import { CsvS3Service } from '../csv-s3/csv-s3.service';
 import axios from 'axios';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Cron } from '@nestjs/schedule';
-import _ from 'lodash';
+const lGet = require('lodash/get');
 import { S3ToDatabaseService } from '../s3-to-database/s3-to-database.service';
 import { FileInfo } from './file.info';
-import { LoggerProvider } from '../../logger/logger.service';
-
+import {LoggingService} from './../../logging/logging.service';
 const GitHub = require('github-api');
 const dayjs = require('dayjs');
 
-const CsvReadableStream = require('csv-reader');
-
 const cred = {
-  username: 'dave@wonderlandlabs.com',
-  password: process.env.GITHUB_PASS,
+  token: process.env.GITHUB_TOKEN
 };
 
 // unauthenticated client
 @Injectable()
 export class GithubCsvService {
   public lastLoadTime: any;
+  
   private s3Service: any;
   private prismaService: any;
-  private s3DoTB: any;
-  private logger: LoggerProvider;
+  private s3ToDB: any;
+  private loggingService: any;
+    _loading: any;
 
   constructor(
     @Inject(CsvS3Service) s3Service,
     @Inject(PrismaService) prismaService,
     @Inject(S3ToDatabaseService) s3ToDB,
-    @Inject(LoggerProvider) logger,
-  ) {}
+    @Inject(LoggingService) loggingService,
+  ) {
+    this.s3Service = s3Service;
+    this.prismaService = prismaService;
+    this.s3ToDB = s3ToDB;
+    this.loggingService = loggingService;
+  }
 
   private _gh;
   get gh() {
@@ -73,7 +76,22 @@ export class GithubCsvService {
 
     const { sha } = tree;
 
-    const { data } = await this.repo.getTree(sha);
+
+    let response;
+    try {
+        response = await this.repo.getTree(sha)
+        .catch ((err) => {
+              this.loggingService.error('github-csv-service: error getting data from github: %s', 
+      err.message);
+      throw err;
+        });
+    } catch (err) {
+      this.loggingService.error('github-csv-service: error getting data from github: %s', 
+      err.message);
+      return [];
+    }
+
+    const {data} = response;
     if (!path.length) return data.tree;
 
     const dir = path.shift();
@@ -118,11 +136,11 @@ export class GithubCsvService {
   }
 
   public async loadPath(path: string) {
-    this.logger.log('loadPath: loading %s', path);
+    this.loggingService.log('loadPath: loading %s', path);
     const file = await this.getFile(path);
     try {
       const fileString = await this.fetchFileFromGithub(file);
-      this.logger.log(
+      this.loggingService.log(
         'loadPath: loaded %s (size= %s}',
         path,
         fileString.length,
@@ -138,7 +156,7 @@ export class GithubCsvService {
         );
 
         if (savedFileData) {
-          this.logger.log(
+          this.loggingService.log(
             'loadPath: file data saved as: %s',
             JSON.stringify(savedFileData),
           );
@@ -147,7 +165,7 @@ export class GithubCsvService {
           throw new Error('file saved; cannot retrieve saved_files data');
         }
       } catch (err) {
-        this.logger.error('loadPath: %s error %s', path, err.message);
+        this.loggingService.error('loadPath: %s error %s', path, err.message);
 
         console.log('---- error getting / saving s3Info');
         throw err;
@@ -211,7 +229,22 @@ export class GithubCsvService {
   }
 
   private async loadFiles() {
-    const { data: branch } = await this.repo.getBranch('master');
+    let response;
+    if (this._loading) return;
+    
+    this._loading = true;
+    try {
+      response = await this.repo.getBranch('master')
+    } catch (err) {;
+      this.loggingService.error('github-csv-service: loadFiles error: %s', err.message);
+    }
+    this._loading = false;
+    
+    if (!response) {
+      return;
+    };
+    
+    const { data: branch } = response;
 
     const {
       commit: {
@@ -235,11 +268,14 @@ export class GithubCsvService {
    */
   @Cron('0 */15 * * * *')
   async updateFilesFromGithub() {
-    this.logger.log('updateFilesFromGithub ------ start');
+    if (!this.loggingService) {
+      console.log('--- cannot find loggingService in ', this);
+    }
+    this.loggingService.log('updateFilesFromGithub ------ start');
     const fileList = await this.getFiles(true);
 
     const loadPaths = this.getNewOrChangedPaths(fileList as FileInfo[]);
-    this.logger.log(
+    this.loggingService.log(
       'updateFilesFromGithub ---- loadPaths is %s',
       loadPaths.join(', '),
     );
@@ -258,14 +294,14 @@ export class GithubCsvService {
     const newS3File = await this.firstUnsavedSourceFile();
 
     if (newS3File) {
-      await this.s3DoTB.writeS3FileRows(newS3File); // note - not waiting for async result here
+      await this.s3ToDB.writeS3FileRows(newS3File); // note - not waiting for async result here
     }
   }
 
   private getNewOrChangedPaths(fileList: FileInfo[]) {
     const loadPaths = [];
     fileList.forEach(({ file, s3Data }) => {
-      if (!s3Data || _.get(s3Data, 'ContentLength') !== file.size) {
+      if (!s3Data || lGet(s3Data, 'ContentLength') !== file.size) {
         loadPaths.push(file.path);
       }
     });

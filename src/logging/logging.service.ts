@@ -4,7 +4,7 @@ const winston = require('winston');
 const options = {
   file: {
     level: 'info',
-    filename: `~/covid-data-manager-nest/app.log`,
+    filename: `backend.log`,
     handleExceptions: true,
     json: true,
     maxsize: 5242880, // 5MB
@@ -19,53 +19,67 @@ const options = {
   },
 };
 
-// DEPRECATED: use logging
-
 @Injectable()
-export class LoggerProvider implements LoggerService {
+export class LoggingService {
   private _logger;
   constructor() {
+      try {
+          
     this._logger = new winston.createLogger({
-      format: winston.format.simple(),
+      format: winston.format.combine(
+        winston.format.splat(),
+        winston.format.timestamp(),
+        winston.format.simple()),
       transports: [
         new winston.transports.File(options.file),
         new winston.transports.Console(options.console),
       ],
       exitOnError: false, // do not exit on handled exceptions
     });
+    } catch (err) {
+        console.error('bad log written:', err);
+    }
+    console.log('LoggingService ---- logger saved as ', this._logger)
   }
   /**
    * Write a 'log' level log.
    */
-  log(message: any, ...optionalParams: any[]) {
-    this._logger.info(message, ...optionalParams);
+  public log(message: any, ...optionalParams: any[]) {
+    this._logger.log('info', message, ...optionalParams);
   }
+  
+  /**
+   * write an 'info' level log
+   */
+   public info(message: any, ...optionalParams: any[]) {
+       return this.log(message, ...optionalParams);
+   }
 
   /**
    * Write an 'error' level log.
    */
-  error(message: any, ...optionalParams: any[]) {
-    this._logger.error(message, ...optionalParams);
+  public error(message: any, ...optionalParams: any[]) {
+     this._logger.error(message, ...optionalParams);
   }
 
   /**
    * Write a 'warn' level log.
    */
-  warn(message: any, ...optionalParams: any[]) {
+  public warn(message: any, ...optionalParams: any[]) {
     this._logger.warn(message, ...optionalParams);
   }
 
   /**
    * Write a 'debug' level log.
    */
-  debug?(message: any, ...optionalParams: any[]) {
+  public debug?(message: any, ...optionalParams: any[]) {
     this._logger.debug(message, ...optionalParams);
   }
 
   /**
    * Write a 'verbose' level log.
    */
-  verbose?(message: any, ...optionalParams: any[]) {
+  public verbose?(message: any, ...optionalParams: any[]) {
     this._logger.info(message, ...optionalParams);
   }
 }
