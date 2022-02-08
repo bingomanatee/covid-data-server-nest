@@ -23,23 +23,22 @@ const options = {
 export class LoggingService {
   private _logger;
   constructor() {
-      try {
-          
-    this._logger = new winston.createLogger({
-      format: winston.format.combine(
-        winston.format.splat(),
-        winston.format.timestamp(),
-        winston.format.simple()),
-      transports: [
-        new winston.transports.File(options.file),
-        new winston.transports.Console(options.console),
-      ],
-      exitOnError: false, // do not exit on handled exceptions
-    });
+    try {
+      this._logger = new winston.createLogger({
+        format: winston.format.combine(
+          winston.format.splat(),
+          winston.format.timestamp(),
+          winston.format.simple(),
+        ),
+        transports: [
+          new winston.transports.File(options.file),
+          new winston.transports.Console(options.console),
+        ],
+        exitOnError: false, // do not exit on handled exceptions
+      });
     } catch (err) {
-        console.error('bad log written:', err);
+      console.error('bad log written:', err);
     }
-    console.log('LoggingService ---- logger saved as ', this._logger)
   }
   /**
    * Write a 'log' level log.
@@ -47,19 +46,19 @@ export class LoggingService {
   public log(message: any, ...optionalParams: any[]) {
     this._logger.log('info', message, ...optionalParams);
   }
-  
+
   /**
    * write an 'info' level log
    */
-   public info(message: any, ...optionalParams: any[]) {
-       return this.log(message, ...optionalParams);
-   }
+  public info(message: any, ...optionalParams: any[]) {
+    return this.log(message, ...optionalParams);
+  }
 
   /**
    * Write an 'error' level log.
    */
   public error(message: any, ...optionalParams: any[]) {
-     this._logger.error(message, ...optionalParams);
+    this._logger.error(message, ...optionalParams);
   }
 
   /**
