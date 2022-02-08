@@ -245,7 +245,6 @@ export class GithubCsvService {
       try {
         const response = await axios.head(fullPath);
         const name = path.basename(fullPath);
-        console.log('_loadFilesFromRaw: response headers:', response.headers);
         files.push({
           path: name,
           sha: null,
@@ -255,6 +254,9 @@ export class GithubCsvService {
         break;
       }
     }
+    this.files = files;
+    console.log('raw files retrieved:', files);
+    return files;
   }
 
   private async loadFiles() {
@@ -273,7 +275,7 @@ export class GithubCsvService {
     this._loading = false;
 
     if (!response) {
-      return this._loadFilesFromRaw();
+      this._loadFilesFromRaw();
     }
 
     const { data: branch } = response;
