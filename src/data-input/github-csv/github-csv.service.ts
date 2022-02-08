@@ -276,6 +276,7 @@ export class GithubCsvService {
 
     if (!response) {
       this._loadFilesFromRaw();
+      return;
     }
 
     const { data: branch } = response;
@@ -300,11 +301,8 @@ export class GithubCsvService {
    * This repeated task looks at the github repo and loads new files into s3
    * if they are not in the database.
    */
-  @Cron('0 */5 * * * *')
+  @Cron('0 */30 * * * *')
   async updateFilesFromGithub() {
-    if (!this.loggingService) {
-      console.log('--- cannot find loggingService in ', this);
-    }
     this.loggingService.log('updateFilesFromGithub ------ start');
     const fileList = await this.getFiles(true);
 
@@ -329,7 +327,7 @@ export class GithubCsvService {
    * un-loaded source (s3) file -- indicated by the absence of save_started --
    * and writes its rows to the dataset
    */
-  @Cron('0 */2 * * * *')
+  @Cron('0 */10 * * * *')
   async writeS3Data() {
     this.loggingService.log('>> writeS3Data -- start');
     const newS3File = await this.firstUnsavedSourceFile();

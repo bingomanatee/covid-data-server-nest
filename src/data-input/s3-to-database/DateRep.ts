@@ -103,11 +103,8 @@ export default class DateRep {
 
   public static from(source) {
     if (source instanceof Date) {
-      if (DATE_REP_MAP.has(source.getTime()))
-        return DATE_REP_MAP.get(source.getTime());
       return DateRep.from(source.getTime());
     }
-    if (DATE_REP_MAP.has(source)) return DATE_REP_MAP.get(source);
     return new DateRep(source);
   }
 }

@@ -1,5 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { inspect } from 'util';
+import  {Readable} from 'stream';
+import { LoggingService } from './../../logging/logging.service';
 
 const { S3Client : S3, GetObjectCommand, HeadObjectCommand, ListObjectsCommand, PutObjectCommand } = require("@aws-sdk/client-s3");
 
@@ -16,16 +18,18 @@ const bucketIdentity = {
   apiVersion: '2006-03-01',
   region: 'us-west-2'
 };
-console.log('bucket identity', bucketIdentity);
 
 @Injectable()
 export class CsvS3Service {
   bucket: any;
   s3: any;
+  loggingService: any;
 
-  constructor(@Inject('bucket') bucket: string) {
+  constructor(@Inject('bucket') bucket: string, 
+    @Inject(LoggingService) loggingService,) {
     this.bucket = bucket;
     this.s3 = new S3(bucketIdentity);
+    this.loggingService = loggingService;
   }
 
   public async getBucketInfo(key: string) {
@@ -43,7 +47,6 @@ export class CsvS3Service {
       Region: 'us-west-2'
     }));
     
-    console.log('getBucketKeys: result = %s', inspect(result));
     return result.Contents;
   }
 
@@ -57,7 +60,7 @@ export class CsvS3Service {
     return this.s3.send(new PutObjectCommand(param));
   }
 
-  public async readKeyStream(key: string) {
+  public async readKey(key: string) {
     const param = {
       Bucket: this.bucket,
       Key: key,
