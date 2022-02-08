@@ -4,10 +4,12 @@ import { CsvS3Service } from '../csv-s3/csv-s3.service';
 import axios from 'axios';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Cron } from '@nestjs/schedule';
-const lGet = require('lodash/get');
+
 import { S3ToDatabaseService } from '../s3-to-database/s3-to-database.service';
 import { FileInfo } from './file.info';
 import { LoggingService } from './../../logging/logging.service';
+
+const lGet = require('lodash/get');
 const GitHub = require('github-api');
 const dayjs = require('dayjs');
 const path = require('path');
@@ -52,6 +54,7 @@ export class GithubCsvService {
     if (!this._files) this._files = [];
     return this._files;
   }
+
   set files(values: Tree[]) {
     this._files = values;
   }
@@ -173,7 +176,7 @@ export class GithubCsvService {
       }
     } catch (err) {
       console.log('error writing stream:', err.message);
-        this.loggingService.error('loadPath: %s error %s', path, err.message);
+      this.loggingService.error('loadPath: %s error %s', path, err.message);
       return { error: err.message };
     }
   }
@@ -303,14 +306,16 @@ export class GithubCsvService {
     this.loggingService.log('updateFilesFromGithub ------ start');
     const fileList = await this.getFiles(true);
 
-    this.loggingService.log('updateFilesFromGithub checking files %s', 
-      JSON.stringify(fileList)
+    this.loggingService.log(
+      'updateFilesFromGithub checking files %s',
+      JSON.stringify(fileList),
     );
-    
+
     const loadPaths = this.getNewOrChangedPaths(fileList as FileInfo[]);
     this.loggingService.log(
       'updateFilesFromGithub ---- loadPaths is %s (%d count)',
-      loadPaths.join(', '), loadPaths.length
+      loadPaths.join(', '),
+      loadPaths.length,
     );
     await Promise.all(loadPaths.map((path) => this.loadPath(path)));
 
@@ -326,7 +331,10 @@ export class GithubCsvService {
   async writeS3Data() {
     this.loggingService.log('>> writeS3Data -- start');
     const newS3File = await this.firstUnsavedSourceFile();
-    this.loggingService.log('writeS3Data first unfinished row: %s', newS3File ?  JSON.stringify(newS3File) : '(none)');
+    this.loggingService.log(
+      'writeS3Data first unfinished row: %s',
+      newS3File ? JSON.stringify(newS3File) : '(none)',
+    );
 
     if (newS3File) {
       try {
