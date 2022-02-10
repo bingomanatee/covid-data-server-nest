@@ -13,6 +13,7 @@ const lGet = require('lodash/get');
 const GitHub = require('github-api');
 const dayjs = require('dayjs');
 const path = require('path');
+const _ = require('lodash');
 
 const cred = {
   token: process.env.GITHUB_TOKEN,
@@ -84,14 +85,14 @@ export class GithubCsvService {
     try {
       response = await this.repo.getTree(sha).catch((err) => {
         this.loggingService.error(
-          'github-csv-service: error getting data from github: %s',
+          'climbTree: error getting data from github: %s',
           err.message,
         );
         throw err;
       });
     } catch (err) {
       this.loggingService.error(
-        'github-csv-service: error getting data from github: %s',
+        'climbTree: error/2 getting data from github: %s',
         err.message,
       );
       return [];
@@ -115,7 +116,7 @@ export class GithubCsvService {
   }
 
   public async getFiles(withS3 = false): Promise<Array<Tree | FileInfo>> {
-    if (!this.useCache()) await this.loadFiles();
+    await this.loadFiles();
     const keys = await this.s3Service.getBucketKeys();
     this.files = this.files.map((file) => {
       return {
@@ -135,50 +136,56 @@ export class GithubCsvService {
     } else return this.files;
   }
 
-  public async getFile(path: string) {
-    if (!this.useCache()) await this.loadFiles();
+  public async getFile(path: string, skipCache = false) {
+    if (skipCache || this.useCache()) await this.loadFiles();
     const out = this.files.find((file) => file.path === path);
+    if (!skipCache && !out) return this.getFile(path, true);
     return out;
   }
 
-  public async loadPath(path: string) {
-    this.loggingService.log('loadPath: loading %s', path);
+  public async writePathToS3(path: string) {
+    this.loggingService.log('writePathToS3: loading %s', path);
     const file = await this.getFile(path);
+    if (!file) {
+      this.loggingService.error('writePathToS3: cannot retrive file for %s', path);
+      return;
+    }
     try {
       const fileString = await this.fetchFileFromGithub(file);
       this.loggingService.log(
-        'loadPath: loaded %s (size= %s}',
+        'writePathToS3: loaded %s (size= %s}',
         path,
         fileString.length,
       );
 
-      const result = await this.s3Service.writeStringToKey(path, fileString);
-
-      try {
-        const s3Info = await this.s3Service.getBucketInfo(path);
-        const savedFileData = await this.updateSourceFileDataForPath(
-          path,
-          s3Info,
-        );
-
-        if (savedFileData) {
-          this.loggingService.log(
-            'loadPath: file data saved as: %s',
-            JSON.stringify(savedFileData),
-          );
-          return savedFileData;
-        } else {
-          throw new Error('file saved; cannot retrieve saved_files data');
-        }
-      } catch (err) {
-        console.log('---- error getting / saving s3Info');
-        throw err;
-      }
+      await this.s3Service.writeStringToKey(path, fileString);
+      this.loggingService.log(
+        'writePathToS3: wrote %s (size= %s}',
+        path,
+        fileString.length,
+      );
     } catch (err) {
-      console.log('error writing stream:', err.message);
-      this.loggingService.error('loadPath: %s error %s', path, err.message);
+      this.loggingService.error('writePathToS3: %s error %s', path, err.message);
       return { error: err.message };
     }
+    
+    try {
+      const s3Info = await this.s3Service.getBucketInfo(path);
+  
+      if (s3Info) {
+        this.loggingService.log(
+          'writePathToS3: file data saved as: %s',
+          JSON.stringify(s3Info),
+        );
+        return s3Info;
+      } else {
+        this.loggingService.error('writePathToS3 --- file saved; cannot retrieve bucket data for path %s', path);
+      }
+    } catch (err) {
+      this.loggingService.error('writePathToS3 ---- error getting / saving s3Info: %s', err.message);
+      return {error: err.message};
+    }
+  
   }
 
   public async updateSourceFileDataForPath(path, data): Promise<any> {
@@ -298,26 +305,27 @@ export class GithubCsvService {
   }
 
   /**
-   * This repeated task looks at the github repo and loads new files into s3
-   * if they are not in the database.
+   * This repeated task looks at source_files table
+   * and loads data from one of the files that the source-files record
+   * does not have a write-start date .
    */
   @Cron('0 */30 * * * *')
-  async updateFilesFromGithub() {
-    this.loggingService.log('updateFilesFromGithub ------ start');
+  async loadDataFromS3Files() {
+    this.loggingService.log('loadDataFromS3Files ------ start');
     const fileList = await this.getFiles(true);
 
     this.loggingService.log(
-      'updateFilesFromGithub checking files %s',
-      JSON.stringify(fileList),
+      'loadDataFromS3Files checking files %s',
+      JSON.stringify(_.map(fileList, 'file.path')),
     );
 
     const loadPaths = this.getNewOrChangedPaths(fileList as FileInfo[]);
     this.loggingService.log(
-      'updateFilesFromGithub ---- loadPaths is %s (%d count)',
+      'loadDataFromS3Files ---- loadPaths is %s (%d count)',
       loadPaths.join(', '),
       loadPaths.length,
     );
-    await Promise.all(loadPaths.map((path) => this.loadPath(path)));
+    await Promise.all(loadPaths.map((path) => this.writePathToS3(path)));
 
     return fileList;
   }
@@ -338,21 +346,32 @@ export class GithubCsvService {
 
     if (newS3File) {
       try {
-        await this.s3ToDB.writeS3FileRows(newS3File); // note - not waiting for async result here
+        await this.s3ToDB.writeS3FileRows(newS3File.path); // note - not waiting for async result here
       } catch (err) {
         this.loggingService.error('writeS3Data: error %s', err.message);
       }
     }
   }
 
+/**
+ * compares github stored data against s3 stored data
+ * and returns files for which the size is different or the s3 data is absent.
+ * note - does NOT reference/care about stored_files db table
+ */
   private getNewOrChangedPaths(fileList: FileInfo[]) {
-    const loadPaths = [];
+    const changed = [];
     fileList.forEach(({ file, s3Data }) => {
-      if (!s3Data || lGet(s3Data, 'ContentLength') !== file.size) {
-        loadPaths.push(file.path);
+      const s3Size = lGet(s3Data, 'ContentLength');
+      if (!s3Data) {
+        this.loggingService.info('getNewOrChangedPaths: no s3 data for file %s: calling loadData', file.path)
+        changed.push(file.path);
+      } else if (s3Size !== file.size) {
+         this.loggingService.info('getNewOrChangedPaths: file size change for file %s: (s3 - %s vs file - %s) calling loadData',
+            file.path, s3Size, file.size)
+         changed.push(file.path);
       }
     });
-    return loadPaths;
+    return changed;
   }
 
   private async firstUnsavedSourceFile() {

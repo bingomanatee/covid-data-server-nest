@@ -28,8 +28,8 @@ export class GithubCsvController {
 
   @Get('fileinfo')
   async getFilesFromGithub() {
-    const out = await this.githubCsvService.updateFilesFromGithub();
-    this.loggingService.log('github-csv controller: getFilesFromGithub');
+    const out = await this.githubCsvService.loadDataFromS3Files();
+    this.loggingService.log('github-csv controller: loadDataFromS3Files');
     return out;
   }
 
@@ -47,6 +47,12 @@ export class GithubCsvController {
       lastSaved,
     };
   }
+  
+  @Get('writes3data') 
+  async writeS3Data() {
+    await this.githubCsvService.writeS3Data();
+    return 'writing s3 data';
+  }
 
   /**
    * Loads the data in github into s3
@@ -60,6 +66,6 @@ export class GithubCsvController {
     if (!path) {
       return { error: 'no path param' };
     }
-    return this.githubCsvService.loadPath(path);
+    return this.githubCsvService.writePathToS3(path);
   }
 }

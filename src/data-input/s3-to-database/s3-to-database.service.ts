@@ -9,6 +9,9 @@ import CaseRow from './CaseRow';
 
 const { PassThrough } = require('stream');
 const lGet = require('lodash/get');
+const _ = require('lodash');
+
+const MAX_DATA_ROWS = 100;
 
 @Injectable()
 export class S3ToDatabaseService {
@@ -25,23 +28,51 @@ export class S3ToDatabaseService {
     this.prismaService = prismaService;
     this.loggingService = loggingService;
   }
+  
+  private _rows : any[];
+  get rows() {
+    if (!this._rows) this._rows =[];
+    return this._rows;
+  }
+  
+  private pushRow(row) {
+    this.rows.push(row);
+    if (this.rows.length > MAX_DATA_ROWS) {
+      this.flushRows();
+    }
+  }
+  
+  private flushRows(onError = false){
+    const ids = _(this.rows).map('id');
+    const minId = ids.min();
+    const maxId = ids.max();
+    this.prismaService.covid_daily_cases.createMany({
+        data: this.rows,
+        skipDuplicates: true
+      })
+      .then(() => {
+        this.loggingService.info('write records %s..%s', minId, maxId);
+      })
+      .catch((err) => {
+        this.loggingService.error('error writing rows: %s', err.message);
+      });
+    this._rows = [];
+  }
 
-  public async writeS3FileRows(newS3File: any) {
-    this.loggingService.info('writeS3FileRows --- start ');
-    this.loggingService.info('writeS3FileRows: file is %s', inspect(newS3File));
+  public async writeS3FileRows(path: string) {
+    this.loggingService.info('writeS3FileRows --- start %s', path);
     const startDate = new Date();
-    await this.noteStartTime(startDate, newS3File);
+    await this.noteStartTime(startDate, path);
 
-    // a read stream to an s3 file
-
+    // a read stream to an s3 file path
     let stream;
 
     try {
-      stream = await this.s3Service.readKey(newS3File.path);
+      stream = await this.s3Service.readKey(path);
       this.loggingService.info('writeS3FileRows --- got s3 file input stream');
     } catch (err) {
         this.loggingService.error('writeS3FileRows error getting stream for s3: %s', err.message);
-        this.resetLog(newS3File);
+        this.resetLog(path);
       return;
     }
 
@@ -66,10 +97,11 @@ export class S3ToDatabaseService {
         // at this point we are just running over the rows
         // and incrementing the count
         if (++rowCount < 4) {
-          console.log('A row for: ', newS3File.path, row);
+          target.pushRow(row);
 
           target.loggingService.info(
-            'writeS3FileRows --- writing row %d, %s',
+            'writeS3FileRows path %s --- writing row %d, %s',
+            path,
             rowCount,
             JSON.stringify(row),
           );
@@ -80,12 +112,13 @@ export class S3ToDatabaseService {
           'writeS3FileRows --- parse error: %s',
           err.message,
         );
-        target.writeCsvError(newS3File, err);
-        target.resetLog(newS3File);
+        target.writeCsvError(path, err);
+        target.resetLog(path);
       })
       .on('end', function () {
         target.loggingService.info('writeS3FileRows --- done');
-        target.noteFinishTime(rowCount, newS3File);
+        target.noteFinishTime(rowCount, path);
+        target.flushRows();
       });
     
     stream.on('data', (chunk) => input.write(chunk.toString()));
@@ -95,16 +128,17 @@ export class S3ToDatabaseService {
     });
     
     stream.once('error', () => {
-        target.resetLog(newS3File);
+        target.resetLog(path);
+        this.flushRows(true);
         input.end();
     });
   }
 
-  private resetLog(newS3File: any) {
+  private resetLog(path: string) {
     this.prismaService.source_files
       .update({
         where: {
-          path: newS3File.path,
+          path: path,
         },
         data: {
           save_finished: null,
@@ -112,47 +146,47 @@ export class S3ToDatabaseService {
         },
       })
       .catch((err) => {
-        this.loggingService.log(
-          'error annotating source file: %s',
+       this.loggingService.error(
+          'error resetLog: %s, %s',
           err.message,
+          path
         );
       });
   }
   
-  private noteFinishTime(rowCount: number, newS3File: any) {
+  private noteFinishTime(rowCount: number, path: string) {
     this.loggingService.log('No more rows! (row count = %d), ', rowCount);
     this.prismaService.source_files
       .update({
         where: {
-          path: newS3File.path,
+          path: path,
         },
         data: {
           save_finished: new Date(),
         },
       })
       .catch((err) => {
-        console.log(
-          'error annotating source file end:',
-          err,
-          'source file =',
-          newS3File,
+        this.loggingService.error(
+          'error noteFinishTime: %s, %s',
+          err.message,
+          path
         );
       });
   }
 
-  private writeCsvError(newS3File: any, err) {}
+  private writeCsvError(path: string, err) {}
 
-  private async noteStartTime(startDate: Date, newS3File) {
-    const s3Info = await this.s3Service.getBucketInfo(newS3File.path);
+  private async noteStartTime(startDate: Date, path) {
+    const s3Info = await this.s3Service.getBucketInfo(path);
     this.loggingService.info(
       'got s3Info for %s, = %s',
-      newS3File.path,
+      path,
       JSON.stringify(s3Info),
     );
     await this.prismaService.source_files
       .update({
         where: {
-          path: newS3File.path,
+          path: path,
         },
         data: {
           save_started: startDate,
@@ -161,11 +195,10 @@ export class S3ToDatabaseService {
         },
       })
       .catch((err) => {
-        console.log(
-          'error annotating source file end:',
-          err,
-          'source file =',
-          newS3File,
+        this.loggingService.error(
+          'error noteStartTime: %s, %s',
+          err.message,
+          path
         );
       });
   }

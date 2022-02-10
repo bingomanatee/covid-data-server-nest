@@ -27,7 +27,16 @@ function asDate(date) {
   return value.invalid ? null : value.asDate();
 }
 
+function asString(str) {
+  try {
+   return `${str}`;
+  } catch (err) {
+    return '';
+  }
+}
+
 export const KEYS = [
+  'id',
   'date_published',
   'uid',
   'iso2',
@@ -35,6 +44,7 @@ export const KEYS = [
   'code3',
 
   'fips',
+  'admin2', 
   'province_state',
   'country_region',
 
@@ -127,6 +137,7 @@ function defProps(myClass, names, inputFilter, start) {
 defProps(
   CaseRow,
   [
+    'id',
     'mortality_rate',
     'active',
     'population',
@@ -154,6 +165,18 @@ defProps(
   asFloat,
   null,
 );
+
+defProps(
+  CaseRow,
+  [
+      'iso2'        , 
+  'iso3'     ,   
+  'code3'  ,       
+  'fips'   ,       
+ ' admin2'   ,    
+  'province_state',
+  'country_region',
+    ], asString, '');
 /*
 toInt(row, 'Mortality_Rate', 'Incident_Rate', 'Active', 'Population', 'People_Tested', 'Confirmed', 'Deaths', 'UID', 'Recovered', 'People_Hospitalized');
     toDate(row, 'Date_Published', 'Last_Update');
