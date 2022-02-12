@@ -10,6 +10,9 @@ import { SourceFilesController } from './source-files/source-files.controller';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerProvider } from './logger/logger.service';
 import { LoggingService } from './logging/logging.service';
+import { DailyCasesController } from './daily-cases/daily-cases.controller';
+import { CsvS3Service } from './data-input/csv-s3/csv-s3.service';
+import { S3ToDatabaseService } from './data-input/s3-to-database/s3-to-database.service';
 
 @Module({
   imports: [
@@ -19,7 +22,19 @@ import { LoggingService } from './logging/logging.service';
     }),
     ScheduleModule.forRoot(),
   ],
-  controllers: [SourceFilesController],
-  providers: [AppService, DailyCasesService, PrismaService, LoggerProvider, LoggingService],
+  controllers: [SourceFilesController, DailyCasesController],
+  providers: [
+    AppService,
+    DailyCasesService, 
+    PrismaService, 
+    LoggerProvider,
+    LoggingService, 
+    CsvS3Service, 
+    S3ToDatabaseService,
+    {
+      provide: 'bucket',
+      useValue: 'covid-csv-storage',
+    },
+  ],
 })
 export class AppModule {}

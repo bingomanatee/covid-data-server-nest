@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["extendedIndexes"]
 }
 
 datasource db {
@@ -35,6 +36,42 @@ model covid_daily_cases {
   recovered      Int?
   active         Int?
   population     Int?
+  
+   @@index([country_region])
+   @@index([date_published])
+   @@index([uid])
+}
+
+
+model covid_daily_cases_usa {
+  id             Int       @id
+  date_published DateTime
+  uid            Int
+  code3          String
+  fips           String
+  admin2         String
+  province_state String
+  confirmed      Int?
+  deaths         Int?
+  recovered      Int?
+  active         Int?
+   @@index([date_published])
+   @@index([uid])
+}
+
+model locations_usa {
+  uid            Int @id @unique
+  iso2           String
+  iso3           String
+  code3          String
+  fips           String
+  admin2         String
+  province_state String
+  country_region String
+  last_update    DateTime?
+  latitude       Float?
+  longitude      Float?
+  population     Int?
 }
 
 model covid_data {
@@ -59,23 +96,23 @@ model covid_data {
   mortality_rate       Int
   testing_rate         Float?
   hospitalization_rate Float?
-  population           Int
+  population           Int?
 
   @@unique([uid, date_published])
   @@index([date_published])
 }
 
 model locations {
-  uid            Int    @id @unique
+  uid            Int     @id @unique
   iso2           String
   iso3           String
   code3          String
   province_state String
   country_region String
-  latitude       Float  @default(0)
-  longitude      Float  @default(0)
-  combined_key   String
-  population     Int
+  latitude       Float?  @default(0)
+  longitude      Float?  @default(0)
+  combined_key   String?
+  population     Int?
   admin2         String
   fips           String
 }

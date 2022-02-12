@@ -329,13 +329,29 @@ export class GithubCsvService {
 
     return fileList;
   }
+  
+  /**
+   * normalize locations from data
+   */
+  @Cron('0 0 */8 * * *')
+  async digestUSAData() {
+    this.s3ToDB.getUSAData();
+  }
+  
+  /**
+   * normalize locations from data
+   */
+  @Cron('0 0 */12 * * *')
+  async digestLocations() {
+    this.s3ToDB.digestLocations();
+  }
 
   /**
    * This is a repeated routine that looks at the first
    * un-loaded source (s3) file -- indicated by the absence of save_started --
    * and writes its rows to the dataset
    */
-  @Cron('0 */10 * * * *')
+  @Cron('0 */6 * * * *')
   async writeS3Data() {
     this.loggingService.log('>> writeS3Data -- start');
     const newS3File = await this.firstUnsavedSourceFile();

@@ -11,7 +11,7 @@ const { PassThrough } = require('stream');
 const lGet = require('lodash/get');
 const _ = require('lodash');
 
-const MAX_DATA_ROWS = 100;
+const MAX_DATA_ROWS = 1000;
 
 @Injectable()
 export class S3ToDatabaseService {
@@ -27,6 +27,35 @@ export class S3ToDatabaseService {
     this.s3Service = s3Service;
     this.prismaService = prismaService;
     this.loggingService = loggingService;
+  }
+  
+  public digestLocations() {
+    this.prismaService.$queryRaw(`
+insert into locations
+(uid, iso2, iso3, code3, admin2, province_state, country_region, fips, latitude, longitude, population)
+SELECT DISTINCT 
+uid, iso2, iso3, code3, admin2, province_state, country_region, fips, latitude, longitude, population
+FROM covid_daily_cases
+ON CONFLICT DO NOTHING;
+insert into locations_usa
+(uid, iso2, iso3, code3, admin2, province_state, country_region, fips, latitude, longitude, population)
+SELECT DISTINCT 
+uid, iso2, iso3, code3, admin2, province_state, country_region, fips, latitude, longitude, population
+FROM locations
+where iso2='US'
+ON CONFLICT DO NOTHING;
+`)
+  }
+  
+  public getUSAData() {
+  this.prismaService.$queryRaw(`
+     INSERT INTO covid_daily_cases_usa
+(id, date_published, uid, code3, fips, admin2, province_state, confirmed, deaths, recovered, active)
+SELECT 
+id, date_published, uid, code3, fips, admin2, province_state, confirmed, deaths, recovered, active
+FROM covid_daily_cases
+where iso2 = 'US'
+ON CONFLICT DO NOTHING;`);
   }
   
   private _rows : any[];
@@ -57,6 +86,20 @@ export class S3ToDatabaseService {
         this.loggingService.error('error writing rows: %s', err.message);
       });
     this._rows = [];
+  }
+  
+  public async getUniqueLocations(country='United States') {
+    return await this.prismaService.covid_daily_cases.groupBy({
+        by: ['uid', 'country_region', 'province_state', 'iso2', 'iso3', 'code3', 'admin2', 'latitude', 'longitude'  ],
+        where: {
+          country_region: {
+            startsWith: country,
+          },
+          uid: {
+            gt: 0
+          }
+        },
+    })
   }
 
   public async writeS3FileRows(path: string) {
@@ -96,9 +139,9 @@ export class S3ToDatabaseService {
         //@TODO: write to database
         // at this point we are just running over the rows
         // and incrementing the count
-        if (++rowCount < 4) {
-          target.pushRow(row);
+        target.pushRow(row);
 
+        if (++rowCount < 4) {
           target.loggingService.info(
             'writeS3FileRows path %s --- writing row %d, %s',
             path,
