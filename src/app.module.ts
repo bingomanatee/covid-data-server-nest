@@ -13,6 +13,7 @@ import { LoggingService } from './logging/logging.service';
 import { DailyCasesController } from './daily-cases/daily-cases.controller';
 import { CsvS3Service } from './data-input/csv-s3/csv-s3.service';
 import { S3ToDatabaseService } from './data-input/s3-to-database/s3-to-database.service';
+import { DataPrepService } from './data-prep/data-prep.service';
 
 @Module({
   imports: [
@@ -22,15 +23,16 @@ import { S3ToDatabaseService } from './data-input/s3-to-database/s3-to-database.
     }),
     ScheduleModule.forRoot(),
   ],
-  controllers: [SourceFilesController, DailyCasesController],
+  controllers: [SourceFilesController, DailyCasesController ],
   providers: [
     AppService,
-    DailyCasesService, 
-    PrismaService, 
+    DailyCasesService,
+    PrismaService,
     LoggerProvider,
-    LoggingService, 
-    CsvS3Service, 
+    LoggingService,
+    CsvS3Service,
     S3ToDatabaseService,
+    DataPrepService,
     {
       provide: 'bucket',
       useValue: 'covid-csv-storage',

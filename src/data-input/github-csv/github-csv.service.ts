@@ -282,7 +282,7 @@ export class GithubCsvService {
     this._loading = false;
 
     if (!response) {
-      this._loadFilesFromRaw();
+      await this._loadFilesFromRaw();
       return;
     }
 
