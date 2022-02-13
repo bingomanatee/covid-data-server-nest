@@ -6,7 +6,7 @@ import { CsvS3Controller } from './csv-s3/csv-s3.controller';
 import { PrismaService } from '../prisma/prisma.service';
 import { S3ToDatabaseService } from './s3-to-database/s3-to-database.service';
 import CsvReadableStream from 'csv-reader';
-import {LoggingService} from './../logging/logging.service';
+import { LoggingService } from './../logging/logging.service';
 
 @Module({
   providers: [

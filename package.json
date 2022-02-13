@@ -33,6 +33,7 @@
     "aws-sdk": "^2.1066.0",
     "csv-parse": "^5.0.4",
     "csv-reader": "^1.0.8",
+    "csv-stringify": "^6.0.5",
     "dayjs": "^1.10.7",
     "github-api": "^3.4.0",
     "prisma": "^3.9.0",

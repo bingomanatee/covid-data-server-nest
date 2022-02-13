@@ -14,6 +14,8 @@ import { DailyCasesController } from './daily-cases/daily-cases.controller';
 import { CsvS3Service } from './data-input/csv-s3/csv-s3.service';
 import { S3ToDatabaseService } from './data-input/s3-to-database/s3-to-database.service';
 import { DataPrepService } from './data-prep/data-prep.service';
+import { DataPrepController } from './data-prep/data-prep.controller';
+import { DataPrepModule } from './data-prep/data-prep.module';
 
 @Module({
   imports: [
@@ -22,8 +24,13 @@ import { DataPrepService } from './data-prep/data-prep.service';
       rootPath: join(__dirname, '../..', 'frontend/dist'),
     }),
     ScheduleModule.forRoot(),
+    DataPrepModule,
   ],
-  controllers: [SourceFilesController, DailyCasesController ],
+  controllers: [
+    SourceFilesController,
+    DailyCasesController,
+    DataPrepController,
+  ],
   providers: [
     AppService,
     DailyCasesService,
