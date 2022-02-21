@@ -21,7 +21,7 @@ export class DataPrepService {
   constructor(@Inject(PrismaService) prismaService) {}
 
   async writeCSVfile() {
-    await this.consoldiateUSData();
+    await this.consoldiateUSdata();
 
     let writer;
     const fileStream = fs.createWriteStream('.tmp/usData.csv');
@@ -57,7 +57,7 @@ export class DataPrepService {
     );
   }
 
-  async consoldiateUSData() {
+  async consoldiateUSdata() {
     PlaceData.init();
     let cursor = undefined;
     do {

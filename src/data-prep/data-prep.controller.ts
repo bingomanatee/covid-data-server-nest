@@ -5,9 +5,9 @@ import { DataPrepService } from './data-prep.service';
 export class DataPrepController {
   constructor(private dataPrepService: DataPrepService) {}
 
-  @Get('consolidate')
-  async consolidate() {
-    await this.dataPrepService.consoldiateUSData();
+  @Get('write-csv')
+  async writeCSVfile() {
+    await this.dataPrepService.writeCSVfile();
     return 'consolidate';
   }
 }
