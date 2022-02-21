@@ -3,10 +3,10 @@ import { GithubCsvService } from './github-csv.service';
 import { Tree } from './interfaces/tree.interface';
 import { CsvS3Service } from '../csv-s3/csv-s3.service';
 import { PrismaService } from './../../prisma/prisma.service';
-import { FileInfo } from './file.info';
 import { LoggingService } from 'src/logging/logging.service';
 
 const { inspect } = require('util');
+
 interface TreeData {
   files: Tree[];
   isCached: boolean;
@@ -23,7 +23,7 @@ export class GithubCsvController {
     private githubCsvService: GithubCsvService,
     private csvS3Service: CsvS3Service,
     private prismaService: PrismaService,
-    private loggingService : LoggingService,
+    private loggingService: LoggingService,
   ) {}
 
   @Get('fileinfo')
@@ -47,8 +47,8 @@ export class GithubCsvController {
       lastSaved,
     };
   }
-  
-  @Get('writes3data') 
+
+  @Get('writes3data')
   async writeS3Data() {
     await this.githubCsvService.writeS3Data();
     return 'writing s3 data';
