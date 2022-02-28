@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataPrepService } from './data-prep.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { LoggingService } from '../logging/logging.service';
 describe('DataPrepService', () => {
   let service: DataPrepService;
 
@@ -9,6 +10,12 @@ describe('DataPrepService', () => {
       providers: [
         {
           provide: PrismaService,
+          useFactory: () => {
+            return {};
+          },
+        },
+        {
+          provide: LoggingService,
           useFactory: () => {
             return {};
           },

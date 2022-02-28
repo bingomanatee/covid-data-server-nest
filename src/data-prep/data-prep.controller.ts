@@ -1,6 +1,6 @@
 import { Get, Controller } from '@nestjs/common';
 import { DataPrepService } from './data-prep.service';
-import { LoggingService } from 'src/logging/logging.service';
+import { LoggingService } from '../logging/logging.service';
 
 @Controller('api/data-prep')
 export class DataPrepController {

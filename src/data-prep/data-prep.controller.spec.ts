@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { LoggingService } from '../logging/logging.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { GithubCsvController } from '../data-input/github-csv/github-csv.controller';
 import { DataPrepController } from './data-prep.controller';
 import { DataPrepService } from './data-prep.service';
 
