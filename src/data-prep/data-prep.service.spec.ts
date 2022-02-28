@@ -1,12 +1,20 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataPrepService } from './data-prep.service';
-
+import { PrismaService } from '../prisma/prisma.service';
 describe('DataPrepService', () => {
   let service: DataPrepService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [DataPrepService],
+      providers: [
+        {
+          provide: PrismaService,
+          useFactory: () => {
+            return {};
+          },
+        },
+        DataPrepService,
+      ],
     }).compile();
 
     service = module.get<DataPrepService>(DataPrepService);

@@ -1,28 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { GithubCsvService } from './github-csv.service';
-import { CsvS3Service } from '../csv-s3/csv-s3.service';
-import { LoggingService } from '../../logging/logging.service';
+import { UsDataCruncherService } from './us-data-cruncher.service';
 import { PrismaService } from '../../prisma/prisma.service';
-import { S3ToDatabaseService } from '../s3-to-database/s3-to-database.service';
+import { CsvS3Service } from '../../data-input/csv-s3/csv-s3.service';
+import { S3ToDatabaseService } from '../../data-input/s3-to-database/s3-to-database.service';
+import { LoggingService } from '../../logging/logging.service';
 
-describe('GithubCsvService', () => {
-  let service: GithubCsvService;
+describe('UsDataCruncherService', () => {
+  let service: UsDataCruncherService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        {
-          provide: CsvS3Service,
-          useFactory: () => {
-            return {};
-          },
-        },
-        {
-          provide: LoggingService,
-          useFactory: () => {
-            return {};
-          },
-        },
         {
           provide: PrismaService,
           useFactory: () => {
@@ -35,11 +23,23 @@ describe('GithubCsvService', () => {
             return {};
           },
         },
-        GithubCsvService,
+        {
+          provide: LoggingService,
+          useFactory: () => {
+            return {};
+          },
+        },
+        {
+          provide: CsvS3Service,
+          useFactory: () => {
+            return {};
+          },
+        },
+        UsDataCruncherService,
       ],
     }).compile();
 
-    service = module.get<GithubCsvService>(GithubCsvService);
+    service = module.get<UsDataCruncherService>(UsDataCruncherService);
   });
 
   it('should be defined', () => {

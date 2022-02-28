@@ -1,4 +1,4 @@
-import dayjs, { Dayjs } from 'dayjs';
+const dayjs = require('dayjs');
 const _ = require('lodash');
 
 const DAY_ZERO = dayjs(new Date(2020, 0, 1));
@@ -23,7 +23,7 @@ export default class PlaceData {
 
   setStat(dataType: string, value: number, date) {
     if (!value) return;
-    if (!(date instanceof Dayjs)) {
+    if (!dayjs.isDayjs(value)) {
       return this.setStat(dataType, value, dayjs(date));
     }
 

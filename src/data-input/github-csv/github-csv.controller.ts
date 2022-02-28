@@ -3,7 +3,7 @@ import { GithubCsvService } from './github-csv.service';
 import { Tree } from './interfaces/tree.interface';
 import { CsvS3Service } from '../csv-s3/csv-s3.service';
 import { PrismaService } from './../../prisma/prisma.service';
-import { LoggingService } from 'src/logging/logging.service';
+import { LoggingService } from '../../logging/logging.service';
 
 const { inspect } = require('util');
 

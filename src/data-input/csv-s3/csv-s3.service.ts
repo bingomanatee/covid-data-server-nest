@@ -2,7 +2,6 @@ import { Injectable, Inject } from '@nestjs/common';
 import { LoggingService } from './../../logging/logging.service';
 
 const {
-  S3Client: S3,
   GetObjectCommand,
   HeadObjectCommand,
   ListObjectsCommand,
@@ -15,26 +14,19 @@ type ObjectKeys = {
   Key: string;
 };
 
-const bucketIdentity = {
-  endpoint: 'https://s3.us-west-2.amazonaws.com',
-  accessKeyId: process.env.AWS_BUCKET_ACCESS_KEY,
-  secretAccessKey: process.env.AWS_BUCKET_SECRET,
-  apiVersion: '2006-03-01',
-  region: 'us-west-2',
-};
-
 @Injectable()
 export class CsvS3Service {
   bucket: any;
-  s3: any;
+  s3Instance: any;
   loggingService: any;
 
   constructor(
     @Inject('bucket') bucket: string,
+    @Inject('s3Instance') s3Instance: any,
     @Inject(LoggingService) loggingService,
   ) {
     this.bucket = bucket;
-    this.s3 = new S3(bucketIdentity);
+    this.s3Instance = s3Instance;
     this.loggingService = loggingService;
   }
 
@@ -44,11 +36,11 @@ export class CsvS3Service {
       Key: key,
     };
 
-    return await this.s3.send(new HeadObjectCommand(params));
+    return await this.s3Instance.send(new HeadObjectCommand(params));
   }
 
   public async getBucketKeys(): Promise<ObjectKeys[]> {
-    const result = await this.s3.send(
+    const result = await this.s3Instance.send(
       new ListObjectsCommand({
         Bucket: this.bucket,
         Region: 'us-west-2',
@@ -65,7 +57,7 @@ export class CsvS3Service {
       Body: Buffer.from(data),
     };
 
-    return this.s3.send(new PutObjectCommand(param));
+    return this.s3Instance.send(new PutObjectCommand(param));
   }
 
   public async readKey(key: string) {
@@ -75,7 +67,7 @@ export class CsvS3Service {
     };
 
     const command = new GetObjectCommand(param);
-    const item = await this.s3.send(command);
+    const item = await this.s3Instance.send(command);
     return item.Body;
   }
 }

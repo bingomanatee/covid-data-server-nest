@@ -1,8 +1,8 @@
-import { Controller, Get,  Injectable, Inject  } from '@nestjs/common';
+import { Controller, Get, Injectable, Inject } from '@nestjs/common';
 import { CsvS3Service } from './csv-s3.service';
 
 interface S3data {
-  Key: string
+  Key: string;
 }
 
 @Injectable()
