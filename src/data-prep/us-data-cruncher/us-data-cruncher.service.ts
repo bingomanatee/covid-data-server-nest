@@ -3,7 +3,7 @@ import { CsvS3Service } from '../../data-input/csv-s3/csv-s3.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { S3ToDatabaseService } from '../../data-input/s3-to-database/s3-to-database.service';
 import { LoggingService } from '../../logging/logging.service';
-import { makeCruncher } from './make.cruncher';
+import { makeCruncher } from './make-cruncher';
 
 @Injectable()
 export class UsDataCruncherService {

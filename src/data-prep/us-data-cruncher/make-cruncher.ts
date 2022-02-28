@@ -1,16 +1,16 @@
 import { Mirror } from '@wonderlandlabs/mirror';
+import { makeCruncherChunk } from './make-cruncher-chunk';
 
-const ROWS_PER_CHUNK = 2000;
-
-export function makeCruncher(params) {
-  new Mirror(
+export function makeCruncher(params): any {
+  return new Mirror(
     {
       maxId: null,
     },
     {
+      mutable: true,
       assets: params,
       actions: {
-        async getMaxId(mir) {
+        async fetchMaxId(mir) {
           await mir.$assets.prismaService.covid_daily_cases_usa
             .findFirst({
               orderBy: { id: 'desc' },
@@ -30,21 +30,22 @@ export function makeCruncher(params) {
           mir.$do.setMaxId(lastRecord.id);
         },
         makeChunks(mir) {
-          const start = 0;
+          let start = 0;
           do {
-            const max = start + ROWS_PER_CHUNK - 1;
+            const max = start + mir.$assets.ROWS_PER_CHUNK - 1;
             mir.$do.makeChunk(start, max);
+            start += mir.$assets.ROWS_PER_CHUNK;
           } while (start <= mir.value.maxId);
         },
 
         makeChunk(mir, start, max) {
-          mir.$children.chunks.adChild(
-            start,
-            new Mirror({
-              start,
-              max,
-            }),
-          );
+          try {
+            mir.$children
+              .get('chunks')
+              .$addChild(start, makeCruncherChunk(mir.$assets, start, max));
+          } catch (err) {
+            console.log('error makeChunk:', start, max, err);
+          }
         },
       },
       children: {

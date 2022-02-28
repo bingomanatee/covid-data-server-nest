@@ -30,6 +30,7 @@
     "@nestjs/serve-static": "^2.2.2",
     "@prisma/client": "3.9.0",
     "@types/cron": "^1.7.3",
+    "@wonderlandlabs/action-queue": "^1.0.0",
     "@wonderlandlabs/mirror": "^0.1.9",
     "aws-sdk": "^2.1066.0",
     "csv-parse": "^5.0.4",

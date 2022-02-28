@@ -1,6 +1,6 @@
 import { makeCruncher } from './make-cruncher';
 
-const MAX_ID_FOR_TESTS = 35000;
+const MAX_ID_FOR_TESTS = 35;
 
 describe('make-cruncher', () => {
   let cruncher;
@@ -31,14 +31,23 @@ describe('make-cruncher', () => {
     expect(cruncher).toBeDefined();
   });
 
-  describe('.getMaxId', async () => {
+  describe('.fetchMaxId', () => {
     it('should set the maxId', async () => {
-      console.log('---- setting max id');
       expect.assertions(1);
 
-      await cruncher.$do.getMaxId();
+      await cruncher.$do.fetchMaxId();
       expect(cruncher.value.maxId).toBe(MAX_ID_FOR_TESTS);
-      console.log('---- value of cruncher:', cruncher.value);
+    });
+
+    it('should make chunks', async () => {
+      expect.assertions(4);
+
+      await cruncher.$do.fetchMaxId();
+
+      expect(cruncher.value.chunks.get(0).max).toBe(9);
+      expect(cruncher.value.chunks.get(10).max).toBe(19);
+      expect(cruncher.value.chunks.get(20).max).toBe(29);
+      expect(cruncher.value.chunks.get(30).max).toBe(39);
     });
   });
 });
