@@ -18,4 +18,3 @@ export class RowObj {
     return this._dayNum;
   }
 }
-
