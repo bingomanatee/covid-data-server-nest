@@ -1,6 +1,6 @@
 import { Mirror } from '@wonderlandlabs/mirror';
 import PlaceData from '../PlaceData';
-import { RowObj } from '../row-obj';
+import { RowObj } from '../RowObj';
 
 const dayjs = require('dayjs');
 const sortBy = require('lodash/sortBy');
@@ -20,6 +20,13 @@ export function makeCruncherChunk(assets, start, max) {
       mutable: true,
       assets,
       actions: {
+        pdRows(mir) {
+          const out = [];
+          mir.value.placeData.forEach((pd) => {
+            out.push(pd.statsToRows());
+          });
+          return out;
+        },
         onLoad(mir, rows) {
           const rowObjs = sortBy(
             rows.map((row) => new RowObj(row)),
@@ -27,6 +34,7 @@ export function makeCruncherChunk(assets, start, max) {
             'data.id',
           );
           mir.$do.setRows(rowObjs);
+
           const placeData = new Map();
           rowObjs.forEach((row) => {
             if (!placeData.has(row.data.uid)) {
@@ -34,6 +42,8 @@ export function makeCruncherChunk(assets, start, max) {
             }
             placeData.get(row.data.uid).digestRow(row);
           });
+          mir.$do.setPlaceData(placeData);
+
           mir.$do.setLoadStatus('loaded');
         },
         onLoadError(mir, err) {

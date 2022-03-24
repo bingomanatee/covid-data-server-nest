@@ -1,20 +1,35 @@
 import { makeCruncherChunk } from './make-cruncher-chunk';
 import mock = jest.mock;
+import { DAY_ZERO } from '../constants';
 
 const CHUNK_START = 10;
 const CHUNK_MAX = 19;
 
+let _id = 0;
+function mockData(dayOff, uid, deaths, confirmed, recovered) {
+  const out = {
+    id: ++_id,
+    uid,
+    deaths,
+    confirmed,
+    recovered,
+  };
+
+  // @ts-ignore
+  out.date_published = DAY_ZERO.add(dayOff, 'day').toISOString();
+
+  return out;
+}
+
+const UID_1 = 1200;
+
 const mockResults = [
-  {
-    date_published: '2021-12-31T00:00:00',
-  },
-  {
-    date_published: '2021-12-31T00:00:00',
-  },
-  {
-    date_published: '2022-01-01T00:00:00',
-  },
+  mockData(700, UID_1, 50, 0, 200),
+  mockData(701, UID_1, 100, 30, 800),
+  mockData(702, UID_1, 120, 35, 1200),
 ];
+
+console.log('mockResults', mockResults);
 
 describe('make-cruncher-chunk', () => {
   let chunk;
@@ -58,15 +73,18 @@ describe('make-cruncher-chunk', () => {
       expect(chunk.value.loadStatus).toBe('loaded');
     });
 
-    it('should set loadStatus', async () => {
+    it('should summarize data', async () => {
       expect.assertions(1);
       await chunk.$do.loadRows();
 
-      const dayOffsets = chunk.value.rows.map((row) => row.dayNum);
-
-      console.log('--- dayOffsets', dayOffsets);
-
-      expect(dayOffsets).toEqual([730, 730, 731]);
+      expect(chunk.$do.pdRows()).toEqual([
+        [
+          ['uid', 'stat', 700, 701, 702],
+          [1200, 'deaths', 50, 100, 120],
+          [1200, 'recovered', 200, 800, 1200],
+          [1200, 'confirmed', 0, 30, 35],
+        ],
+      ]);
     });
   });
 });

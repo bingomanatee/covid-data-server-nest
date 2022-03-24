@@ -17,6 +17,8 @@ const BASE_REQ = {
   },
 };
 
+// deprecated
+
 @Injectable()
 export class DataPrepService {
   private prismaService: any;
@@ -92,7 +94,7 @@ export class DataPrepService {
   }
 
   async consoldiateUSdata() {
-    PlaceData.init();
+    PlaceData;
     let cursor = undefined;
     let cycles = 0;
     do {
@@ -141,7 +143,7 @@ export class DataPrepService {
     results.forEach((row) => {
       const { uid, confirmed, deaths, recovered, active, date_published } = row;
 
-      PlaceData.setPDStat(
+   /*   PlaceData.setPDStat(
         uid,
         'confirmed',
         confirmed,
@@ -168,7 +170,7 @@ export class DataPrepService {
         active,
         date_published,
         this.loggingService,
-      );
+      );*/
     });
   }
 }

@@ -1,4 +1,4 @@
-import dayjs from 'dayjs';
+const dayjs = require('dayjs');
 import { DAY_ZERO } from './constants';
 
 export class RowObj {

@@ -30,7 +30,10 @@ export default class PlaceData {
     return _(Array.from(this.stats.values())).map('length').max();
   }
 
-  getMinDate() {
+  /***
+   * calculates the minimum offset of all the stored data
+   */
+  getMinDate(): number {
     let min = null;
 
     this._stats.forEach((map, dataType) => {
@@ -56,7 +59,7 @@ export default class PlaceData {
       return this.setStat(dataType, value, dayjs(date), loggingService);
     }
 
-    const offset = DAY_ZERO.diff(date, 'day');
+    const offset = date.diff(DAY_ZERO, 'day');
 
     if (loggingService && statsWritten < 20) {
       loggingService(
@@ -72,6 +75,43 @@ export default class PlaceData {
       this.stats.set(dataType, new Map());
     }
     this.stats.get(dataType).set(offset, value);
+  }
+
+  _statRow(stat: string, data) {
+    const out = [this.uid, stat];
+    const offset = this.getMinDate() - out.length;
+    data.forEach((value, dayOff) => {
+      out[dayOff - offset] = value;
+    });
+    for (let index = 0; index < out.length; ++index) {
+      if (!out[index]) {
+        out[index] = 0;
+      }
+    }
+
+    return out;
+  }
+
+  statsToRows() {
+    const header = ['uid', 'stat'];
+    const out = [header];
+    this.stats.forEach((data, stat) => {
+      // @ts-ignore
+      out.push(this._statRow(stat, data));
+    });
+
+    const maxColumns = out.reduce((max, row) => {
+      return Math.max(max, row.length);
+    }, 0);
+
+    let day = this.getMinDate();
+
+    while (header.length < maxColumns) {
+      // @ts-ignore
+      header.push(day);
+      ++day;
+    }
+    return out;
   }
 
   /**
